@@ -17,7 +17,7 @@ install additional  libraries for Reading webcam input and detecting hand gestur
 pip install opencv-python numpy adafruit-circuitpython-pca9685 adafruit-circuitpython-servokit adafruit-blinka
 ```
 
-run the python programme 
+run the python program 
 
 
 ```bash
