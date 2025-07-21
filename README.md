@@ -26,3 +26,4 @@ python gesture_control.py
 
 
 
+![Image](https://github.com/user-attachments/assets/df651c63-b035-4f6d-b197-2b007a96a6b1)
