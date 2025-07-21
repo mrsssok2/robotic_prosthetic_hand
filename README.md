@@ -24,6 +24,8 @@ run the python program
 python gesture_control.py
 ```
 
+https://github.com/user-attachments/assets/d19e10fa-c630-4ead-9961-5617359b4335
+
 
 
 ![Image](https://github.com/user-attachments/assets/df651c63-b035-4f6d-b197-2b007a96a6b1)
