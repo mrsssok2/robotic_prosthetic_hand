@@ -1,0 +1,14 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    finger_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+# order == hand_controller.shaping.JOINT_NAMES
+finger_position_controller:
+  ros__parameters:
+    joints: [little_mcp, little_pip, little_dip, index_mcp, index_pip, index_dip,
+             middle_mcp, middle_pip, middle_dip, ring_mcp, ring_pip, ring_dip,
+             thumb_swing, thumb_opp, thumb_mcp, thumb_ip]

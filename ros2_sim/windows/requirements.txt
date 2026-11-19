@@ -1,0 +1,5 @@
+# Python 3.11 on Windows. mediapipe 0.10.14 still ships the classic mp.solutions.hands API
+# (like the original gesture_control.py) and needs numpy < 2.
+mediapipe==0.10.14
+opencv-python==4.10.0.84
+numpy==1.26.4

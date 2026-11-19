@@ -1,0 +1,184 @@
+<?xml version="1.0"?>
+<!-- Right hand in the style of an InMoov printed hand (white PLA, procedural meshes from scripts/gen_meshes.py).
+     Frame: wrist at the palm origin, fingers point +Z, the palm faces -Y (viewed from -Y with the fingers up,
+     +X is on the right, so the thumb is on +X and the little finger on -X). Finger flexion = rotation about +X
+     (tips move toward -Y, over the palm). A forearm shell hangs below the wrist; the whole arm stands on a plate.
+
+     Fingers: one tendon per finger -> MCP is commanded, PIP = K_PIP * MCP, DIP = K_DIP * MCP.
+     Thumb: low on the palm's side, open pose points out sideways about 70 deg from the index finger. Closing swings it
+            sideways across the front of the palm (thumb_swing, in the palm plane, about -Y) with a little opposition
+            (thumb_opp, about the thumb's own X) while both segments curl toward the palm (thumb_mcp, thumb_ip).
+            All four thumb joints follow the single thumb value (ratios below).
+
+     Gazebo Harmonic's DART ignores <mimic>, so in simulation every joint is position-driven and
+     hand_controller applies the same ratios; <mimic> tags are used when sim_gazebo is false (RViz).
+     Keep the numbers in the properties below in sync with hand_controller/shaping.py and scripts/dims.py
+     (tests check both). xacro args: sim_gazebo, controllers_yaml, base_z. -->
+<robot name="hand" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="sim_gazebo" default="false"/>
+  <xacro:arg name="controllers_yaml" default=""/>
+  <xacro:arg name="base_z" default="0.28"/>
+
+  <xacro:property name="use_mimic" value="${'$(arg sim_gazebo)' != 'true'}"/>
+  <xacro:property name="MCP_MAX" value="1.57"/>
+  <xacro:property name="K_PIP" value="1.2"/>
+  <xacro:property name="K_DIP" value="0.7"/>
+  <xacro:property name="SWING_MAX" value="2.95"/>
+  <xacro:property name="OPP_MAX" value="0.43"/>
+  <xacro:property name="TMCP_MAX" value="0.55"/>
+  <xacro:property name="TIP_MAX" value="0.5"/>
+  <xacro:property name="PALM_H" value="0.085"/>
+  <xacro:property name="MESH" value="file://$(find hand_description)/meshes"/>
+
+  <material name="pla"><color rgba="0.94 0.94 0.92 1"/></material>
+  <material name="black"><color rgba="0.07 0.07 0.08 1"/></material>
+
+  <!-- one printed segment: mesh along +Z of its link -->
+  <xacro:macro name="seg" params="name mesh mass:=0.01">
+    <link name="${name}">
+      <visual>
+        <geometry><mesh filename="${MESH}/${mesh}.obj"/></geometry>
+        <material name="pla"/>
+      </visual>
+      <inertial>
+        <mass value="${mass}"/>
+        <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+
+  <xacro:macro name="empty_link" params="name">
+    <link name="${name}">
+      <inertial>
+        <mass value="0.005"/>
+        <inertia ixx="1e-7" iyy="1e-7" izz="1e-7" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+
+  <!-- axis: rotation axis; master/k: mimic (only when use_mimic) -->
+  <xacro:macro name="joint_r" params="name parent child xyz rpy:='0 0 0' axis:='1 0 0' lo:=0 hi master:='' k:=1.0">
+    <joint name="${name}" type="revolute">
+      <parent link="${parent}"/><child link="${child}"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+      <axis xyz="${axis}"/>
+      <limit lower="${lo}" upper="${hi}" effort="2.0" velocity="8"/>
+      <xacro:if value="${master != '' and use_mimic}"><mimic joint="${master}" multiplier="${k}" offset="0"/></xacro:if>
+      <dynamics damping="0.01"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="finger" params="name x l1 l2">
+    <xacro:seg name="${name}_proximal" mesh="${name}_prox"/>
+    <xacro:seg name="${name}_middle" mesh="${name}_mid"/>
+    <xacro:seg name="${name}_distal" mesh="${name}_dist"/>
+    <xacro:joint_r name="${name}_mcp" parent="palm" child="${name}_proximal" xyz="${x} 0 ${PALM_H}" hi="${MCP_MAX}"/>
+    <xacro:joint_r name="${name}_pip" parent="${name}_proximal" child="${name}_middle" xyz="0 0 ${l1}"
+                   hi="${MCP_MAX*K_PIP + 0.05}" master="${name}_mcp" k="${K_PIP}"/>
+    <xacro:joint_r name="${name}_dip" parent="${name}_middle" child="${name}_distal" xyz="0 0 ${l2}"
+                   hi="${MCP_MAX*K_DIP + 0.05}" master="${name}_mcp" k="${K_DIP}"/>
+  </xacro:macro>
+
+  <link name="world"/>
+
+  <link name="palm">
+    <visual>   <!-- rounded palm -->
+      <origin xyz="0 0 0.0425"/>
+      <geometry><mesh filename="${MESH}/palm.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
+    <visual>   <!-- thenar pad the thumb is mounted on -->
+      <origin xyz="0.036 -0.020 0.030"/>
+      <geometry><mesh filename="${MESH}/thenar.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
+    <visual>   <!-- forearm shell hanging below the wrist -->
+      <geometry><mesh filename="${MESH}/forearm.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
+    <visual>   <!-- wrist cuff -->
+      <geometry><mesh filename="${MESH}/cuff.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 0.0425"/>
+      <mass value="0.5"/>
+      <inertia ixx="1e-3" iyy="1e-3" izz="1e-3" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <joint name="base" type="fixed">
+    <parent link="world"/><child link="palm"/>
+    <origin xyz="0 0 $(arg base_z)"/>
+  </joint>
+
+  <link name="stand">   <!-- black acrylic plate with an electronics block, like the printed hand's stand -->
+    <visual>
+      <origin xyz="0.03 0 0.004"/>
+      <geometry><box size="0.20 0.11 0.008"/></geometry>
+      <material name="black"/>
+    </visual>
+    <visual>
+      <origin xyz="0.085 0 0.029"/>
+      <geometry><box size="0.075 0.05 0.042"/></geometry>
+      <material name="black"/>
+    </visual>
+    <inertial>
+      <origin xyz="0.03 0 0.01"/>
+      <mass value="1.0"/>
+      <inertia ixx="1e-3" iyy="1e-3" izz="1e-3" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <joint name="stand_fixed" type="fixed">
+    <parent link="world"/><child link="stand"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <!-- index is next to the thumb (+X), little finger on the far side (-X) -->
+  <xacro:finger name="little" x="-0.034"  l1="0.034" l2="0.021"/>
+  <xacro:finger name="ring"   x="-0.0115" l1="0.042" l2="0.027"/>
+  <xacro:finger name="middle" x="0.0115"  l1="0.046" l2="0.029"/>
+  <xacro:finger name="index"  x="0.034"   l1="0.041" l2="0.026"/>
+
+  <!-- ===== thumb: swing (sideways across the palm) -> opposition -> MCP flex -> IP flex ===== -->
+  <xacro:empty_link name="thumb_mount"/>
+  <joint name="thumb_mount_fixed" type="fixed">   <!-- CMC: low on the palm's side, on the thenar pad -->
+    <parent link="palm"/><child link="thumb_mount"/>
+    <origin xyz="0.046 -0.037 0.027"/>
+  </joint>
+  <xacro:empty_link name="thumb_swing_link"/>
+  <xacro:seg name="thumb_meta" mesh="thumb_meta"/>
+  <xacro:seg name="thumb_prox" mesh="thumb_prox"/>
+  <xacro:seg name="thumb_dist" mesh="thumb_dist"/>
+  <!-- swing about -Y: positive swings the tip sideways across the palm toward -X (the little finger).
+       The 70 deg open angle (tilt from the index finger) is added after the joint, at thumb_opp; rotations about Y add. -->
+  <xacro:joint_r name="thumb_swing" parent="thumb_mount" child="thumb_swing_link" xyz="0 0 0" axis="0 -1 0" hi="${SWING_MAX}"/>
+  <!-- opposition about the thumb's own +X: tips the thumb out of the palm plane toward -Y (in front of the palm) -->
+  <xacro:joint_r name="thumb_opp" parent="thumb_swing_link" child="thumb_meta" xyz="0 0 0" rpy="0 1.2217 0" hi="${OPP_MAX}"
+                 master="thumb_swing" k="${OPP_MAX/SWING_MAX}"/>
+  <!-- the two thumb segments curl about -X, toward +Y (the palm) -->
+  <xacro:joint_r name="thumb_mcp" parent="thumb_meta" child="thumb_prox" xyz="0 0 0.034" axis="-1 0 0" hi="${TMCP_MAX}"
+                 master="thumb_swing" k="${TMCP_MAX/SWING_MAX}"/>
+  <xacro:joint_r name="thumb_ip" parent="thumb_prox" child="thumb_dist" xyz="0 0 0.030" axis="-1 0 0" hi="${TIP_MAX}"
+                 master="thumb_swing" k="${TIP_MAX/SWING_MAX}"/>
+
+  <xacro:if value="$(arg sim_gazebo)">
+    <ros2_control name="GazeboSimSystem" type="system">
+      <hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>
+      <xacro:macro name="act" params="name">
+        <joint name="${name}">
+          <command_interface name="position"/>
+          <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+          <state_interface name="velocity"/>
+        </joint>
+      </xacro:macro>
+      <xacro:macro name="act_finger" params="f"><xacro:act name="${f}_mcp"/><xacro:act name="${f}_pip"/><xacro:act name="${f}_dip"/></xacro:macro>
+      <xacro:act_finger f="little"/><xacro:act_finger f="ring"/><xacro:act_finger f="middle"/><xacro:act_finger f="index"/>
+      <xacro:act name="thumb_swing"/><xacro:act name="thumb_opp"/><xacro:act name="thumb_mcp"/><xacro:act name="thumb_ip"/>
+    </ros2_control>
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>$(arg controllers_yaml)</parameters>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+</robot>
