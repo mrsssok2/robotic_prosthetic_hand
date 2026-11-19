@@ -9,7 +9,7 @@ WSL2/Docker cannot see the webcam, so MediaPipe runs on Windows and sends the fi
    ("Windows installer (64-bit)", tick *Add python.exe to PATH*), or `winget install Python.Python.3.11`.
 2. **Copy the code to Windows** (the script imports the tested tracking math from `src/hand_tracker`):
    ```powershell
-   robocopy \\wsl.localhost\Ubuntu\home\mahadev\projects\hand_ros2 C:\hand_ros2 /E /XD .git build install log .venv
+   robocopy \\wsl.localhost\Ubuntu\home\mahadev\projects\robotic_prosthetic_hand\ros2_sim C:\hand_ros2 /E /XD .git build install log .venv
    ```
    (Re-run this after pulling changes. Running straight from the `\\wsl.localhost\...` path also works if you prefer.)
 3. **Virtual environment + packages**:
@@ -23,7 +23,7 @@ WSL2/Docker cannot see the webcam, so MediaPipe runs on Windows and sends the fi
 
 ## Every time
 
-1. In **WSL**: `cd ~/projects/hand_ros2 && ./run.sh` (Gazebo opens and waits for finger values).
+1. In **WSL**: `cd ~/projects/robotic_prosthetic_hand/ros2_sim && ./run.sh` (Gazebo opens and waits for finger values).
 2. On **Windows** (venv active):
    ```powershell
    cd C:\hand_ros2\windows

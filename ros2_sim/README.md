@@ -1,4 +1,4 @@
-# hand_ros2
+# ros2_sim (ROS 2 + Gazebo version)
 
 ROS 2 Jazzy, simulation-only version of a robotic prosthetic hand: camera -> MediaPipe -> proportional
 finger curl + gestures -> joint commands -> simulated hand (RViz / Gazebo Harmonic).
@@ -16,7 +16,7 @@ Status: steps 1-6 of 8 (see [docs/design.md](docs/design.md)); metrics, video-fi
 MediaPipe (Python, like the original `gesture_control.py`) runs on **Windows**, because WSL2/Docker cannot
 see the webcam. It sends the five finger values over UDP to the ROS bridge in Docker.
 
-1. WSL: `cd ~/projects/hand_ros2 && ./run.sh` (builds in Docker, opens Gazebo; `./run.sh input:=fake` = no camera)
+1. WSL: `cd ~/projects/robotic_prosthetic_hand/ros2_sim && ./run.sh` (builds in Docker, opens Gazebo; `./run.sh input:=fake` = no camera)
 2. Windows: one-time setup and `python hand_cam.py` -> [windows/README.md](windows/README.md)
 
 Optional alternative: `./run.sh input:=browser` and open http://localhost:8765/ (MediaPipe JS in the browser).
