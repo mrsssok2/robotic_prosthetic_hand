@@ -23,7 +23,7 @@ Simulation-only ROS 2 (Jazzy) rebuild of the robotic prosthetic hand
 |---|---|---|
 | `hand_interfaces` | ament_cmake | `HandLandmarks.msg`, `HandState.msg` |
 | `hand_tracker` | ament_python | `core/` (pure numpy math), tracker node, video/bag input, WS bridge |
-| `hand_controller` | ament_python | curl -> joint commands; smoothing, rate + joint limits |
+| `hand_controller` | ament_python | curl + wrist -> joint commands; One Euro smoothing, rate + joint limits, grips, grasp planner |
 | `hand_description` | ament_cmake | xacro URDF, RViz config, controller YAML |
 | `hand_bringup` | ament_python | launch files, Gazebo world, metrics tools |
 
@@ -52,6 +52,25 @@ Simulation-only ROS 2 (Jazzy) rebuild of the robotic prosthetic hand
   controller cannot hold the thumb against gravity). Gazebo Harmonic's DART ignores URDF `<mimic>`,
   so in simulation hand_controller applies the ratios itself and all 15 joints are position-driven;
   the `<mimic>` tags serve RViz. A test keeps both tables equal.
+- **Smoothing = One Euro filter, per finger and per wrist angle** (`hand_controller/shaping.py`), applied when a sample arrives
+  (not on the 50 Hz tick, so the 30 Hz camera frames are not turned into a staircase), followed by a rate limiter (10 curl/s)
+  and the joint limits. Parameters (`min_cutoff` 0.5 Hz, `beta` 2.5) come from an offline sweep of jitter vs lag on the same
+  synthetic signals the live measurement uses (`scripts/tune_one_euro.py`, `docs/results/one_euro_tuning.txt`); `smoothing:=ema`
+  restores the original EMA 0.3 + 4 curl/s for before/after runs. The filter restarts after a tracking gap of 0.5 s.
+- **Wrist = 2 DOF between a fixed forearm and the palm**: pronation/supination about the forearm axis, then flexion/extension
+  about the transverse axis (order of the joints = Euler order of the measurement). Both pivot at the centre of the forearm's
+  top face, 35 mm below the palm origin, under a ball-joint dome, so the palm's edges swing clear of the forearm over the whole
+  range (+-1.4 rad pronation/supination, +-1.0 rad flexion/extension; `test_geometry.py` checks >= 1 mm clearance on a grid
+  of wrist poses x open/fist, and that the xacro / `shaping.py` / `core/wrist.py` limits agree). Measured from MediaPipe world
+  landmarks only (`core/wrist.py`): finger axis = wrist -> middle MCP, thumb-side axis = little MCP -> index MCP, palm normal =
+  their cross product, relative to a neutral pose (forearm vertical in the image, palm to the camera; the calibration's 'o' pose
+  removes the rest). The forearm is not visible, so this is the *hand's* orientation, not the arm's.
+- **Per-user calibration** (`core/calibration.py`, keys `o` / `f` in `hand_cam.py`): the user's open hand reads 0 and their fist
+  reads 1 per finger; saved as JSON. Applied before the gesture rules, so gestures use the calibrated values.
+- **Grasping**: `select_grip(gesture, nearest object)` picks the grip (hand pose says *when*, nearest object says *which*: thin
+  object -> pinch, wide -> power). Closing stops per finger on fingertip force >= 2 N **or when the finger is blocked** (its
+  joint lags the command: contact anywhere on the finger, which the tip sensor misses); the end of an object grasp is verified
+  (enough fingers touching, else re-open and retry, up to 3 attempts, then `failed`). (An optional `regrip`, off by default, makes a finger that lost its support close on again.) Object poses come from the simulator (stand-in for object perception).
 - **Resources:** 8 GB WSL RAM / 6 GB GPU -> MediaPipe on CPU, Gazebo headless-capable, small hand mesh.
 
 ## Metrics

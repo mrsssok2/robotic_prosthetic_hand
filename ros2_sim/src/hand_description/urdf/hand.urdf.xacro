@@ -10,6 +10,12 @@
             (thumb_opp, about the thumb's own X) while both segments curl toward the palm (thumb_mcp, thumb_ip).
             All four thumb joints follow the single thumb value (ratios below).
 
+     Wrist: 2 DOF between the forearm and the palm, pronation/supination (about the forearm axis) then flexion/extension
+            (about the transverse axis, +X like the finger flexion). Both pivot at the centre of the forearm's top face,
+            WRIST_PIVOT below the palm origin, under a ball-joint dome (palm visual), so the palm's lower edges swing clear of
+            the forearm over the whole range (test_geometry checks the clearance). Limits and pivot are repeated in hand_controller/shaping.py and
+            hand_tracker/core/wrist.py.
+
      Gazebo Harmonic's DART ignores <mimic>, so in simulation every joint is position-driven and
      hand_controller applies the same ratios; <mimic> tags are used when sim_gazebo is false (RViz).
      Keep the numbers in the properties below in sync with hand_controller/shaping.py and scripts/dims.py
@@ -31,6 +37,11 @@
   <xacro:property name="TMCP_MAX" value="0.55"/>
   <xacro:property name="TIP_MAX" value="0.5"/>
   <xacro:property name="PALM_H" value="0.085"/>
+  <xacro:property name="WRIST_PRON_MAX" value="1.4"/>   <!-- +/-: pronation (+) / supination (-) -->
+  <xacro:property name="WRIST_FLEX_MAX" value="1.0"/>   <!-- flexion  -->
+  <xacro:property name="WRIST_EXT_MAX" value="1.0"/>    <!-- extension (lower limit is -this) -->
+  <xacro:property name="WRIST_PIVOT" value="0.035"/>    <!-- pronation/flexion pivot (forearm top) this far below the palm origin; dims.py -->
+  <xacro:property name="WRIST_EFFORT" value="3.0"/>
   <!-- grasping: joint effort limit = force limit of the closing fingers (N*m); fingertip radius ~9 mm, so
        0.25 N*m at the MCP is roughly 3-4 N at the tip -->
   <xacro:property name="FINGER_EFFORT" value="0.10"/>
@@ -101,23 +112,39 @@
 
   <link name="world"/>
 
+  <!-- forearm shell hanging below the wrist + cuff: fixed to the base, the hand turns on top of it -->
+  <link name="forearm">
+    <visual>
+      <geometry><mesh filename="${MESH}/forearm.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
+    <visual>
+      <geometry><mesh filename="${MESH}/cuff.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
+    <inertial>
+      <origin xyz="0 0 -0.1"/>
+      <mass value="0.3"/>
+      <inertia ixx="1e-3" iyy="1e-3" izz="1e-4" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <gazebo reference="forearm"><gravity>false</gravity></gazebo>
+  <xacro:empty_link name="wrist_roll_link"/>
+  <xacro:empty_link name="wrist_flex_link"/>
+
   <link name="palm">
     <visual>   <!-- rounded palm -->
       <origin xyz="0 0 0.0425"/>
       <geometry><mesh filename="${MESH}/palm.obj"/></geometry>
       <material name="pla"/>
     </visual>
+    <visual>   <!-- wrist ball joint: dome on the forearm + neck into the palm -->
+      <geometry><mesh filename="${MESH}/wrist.obj"/></geometry>
+      <material name="pla"/>
+    </visual>
     <visual>   <!-- thenar pad the thumb is mounted on -->
       <origin xyz="0.036 -0.020 0.030"/>
       <geometry><mesh filename="${MESH}/thenar.obj"/></geometry>
-      <material name="pla"/>
-    </visual>
-    <visual>   <!-- forearm shell hanging below the wrist -->
-      <geometry><mesh filename="${MESH}/forearm.obj"/></geometry>
-      <material name="pla"/>
-    </visual>
-    <visual>   <!-- wrist cuff -->
-      <geometry><mesh filename="${MESH}/cuff.obj"/></geometry>
       <material name="pla"/>
     </visual>
     <collision>
@@ -133,8 +160,8 @@
   <gazebo reference="palm"><gravity>false</gravity><mu1>1.5</mu1><mu2>1.5</mu2></gazebo>
   <xacro:if value="${'$(arg lift)' != 'true'}">
     <joint name="base" type="fixed">
-      <parent link="world"/><child link="palm"/>
-      <origin xyz="0 0 $(arg base_z)"/>
+      <parent link="world"/><child link="forearm"/>
+      <origin xyz="0 0 ${$(arg base_z) - WRIST_PIVOT}"/>
     </joint>
   </xacro:if>
   <xacro:if value="${'$(arg lift)' == 'true'}">
@@ -145,14 +172,25 @@
       <parent link="world"/><child link="lift_carriage"/>
       <origin xyz="0 0 $(arg base_z)"/>
       <axis xyz="0 0 1"/>
-      <limit lower="0" upper="0.2" effort="200" velocity="0.5"/>
+      <limit lower="-0.06" upper="0.2" effort="200" velocity="0.5"/>
       <dynamics damping="1.0"/>
     </joint>
     <joint name="base" type="fixed">
-      <parent link="lift_carriage"/><child link="palm"/>
-      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+      <parent link="lift_carriage"/><child link="forearm"/>
+      <origin xyz="0 ${WRIST_PIVOT} 0" rpy="1.5707963 0 0"/>
     </joint>
   </xacro:if>
+
+  <!-- wrist: pronation/supination about the forearm axis (-Z so that + = pronation), then flexion/extension; the forearm
+       frame origin is the pivot, the palm hangs WRIST_PIVOT above it -->
+  <xacro:joint_r name="wrist_pronation" parent="forearm" child="wrist_roll_link" xyz="0 0 0" axis="0 0 -1"
+                 lo="${-WRIST_PRON_MAX}" hi="${WRIST_PRON_MAX}" effort="${WRIST_EFFORT}"/>
+  <xacro:joint_r name="wrist_flexion" parent="wrist_roll_link" child="wrist_flex_link" xyz="0 0 0" axis="1 0 0"
+                 lo="${-WRIST_EXT_MAX}" hi="${WRIST_FLEX_MAX}" effort="${WRIST_EFFORT}"/>
+  <joint name="wrist_palm" type="fixed">
+    <parent link="wrist_flex_link"/><child link="palm"/>
+    <origin xyz="0 0 ${WRIST_PIVOT}"/>
+  </joint>
 
   <xacro:if value="${'$(arg lift)' != 'true'}">
   <link name="stand">   <!-- black acrylic plate with an electronics block, like the printed hand's stand -->
@@ -227,6 +265,7 @@
       <xacro:if value="${'$(arg lift)' == 'true'}"><xacro:act name="lift"/></xacro:if>
       <xacro:act_finger f="little"/><xacro:act_finger f="ring"/><xacro:act_finger f="middle"/><xacro:act_finger f="index"/>
       <xacro:act name="thumb_swing"/><xacro:act name="thumb_opp"/><xacro:act name="thumb_mcp"/><xacro:act name="thumb_ip"/>
+      <xacro:act name="wrist_pronation"/><xacro:act name="wrist_flexion"/>
     </ros2_control>
     <gazebo>
       <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">

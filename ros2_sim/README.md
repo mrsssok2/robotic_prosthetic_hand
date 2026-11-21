@@ -6,14 +6,35 @@ Original single-file version: https://github.com/mrsssok2/robotic_prosthetic_han
 
 ![demo](docs/img/ros2_sim_demo.gif)
 
-Status: steps 1-6 of 8 (see [docs/design.md](docs/design.md)); metrics, video-file input and CI come next.
+Status: steps 1-6 of 8 plus the second iteration below (see [docs/design.md](docs/design.md)); metrics, video-file input and CI come next.
 
 ![open hand, thumb half, thumb closed, fist](docs/img/hand_sequence.png)
 
 
-## Own hand tracker vs MediaPipe vs classic CV, grips and grasping
+## Improvements (second iteration)
 
-`hand_cam.py --tracker yolo|mediapipe|classic` swaps the tracker; the rest of the pipeline is unchanged.
+Full tables, method and caveats: [docs/results/README.md](docs/results/README.md).
+
+| | before | after |
+|---|---|---|
+| UDP -> joint at 50% (median) | 219 ms | **139 ms** |
+| jitter, still hand with 0.03 curl noise (std of the command) | 0.0154 | **0.0111** (-28%) |
+| lag on 1 Hz finger motion | 65 ms | 55 ms |
+| grasp, 5 trials: pen / cup / ball | 3/5 / 4/5 / 0/5 | **5/5 / 5/5 / 1/5** (auto grip: power for ball and cup, pinch for the pen) |
+
+The ball is **not solved** (1/5) and 5 trials per cell is a small sample; details and limits in the results page.
+
+**Grips and grasp world** (`hand_controller/grips.py`, `./run.sh grasp:=true auto_grip:=true`): open, point, pinch, power; a fist/pinch near an object picks the grip from the object (wide -> power, thin -> pinch). Closing stops per finger on fingertip force >= 2 N or when the finger is blocked; power grasps are verified and retried. Scripted test: `scripts/grasp_test.py`.
+
+**Wrist** (2 DOF, `wrist_pronation` / `wrist_flexion`): from MediaPipe world landmarks (palm normal, wrist -> middle-knuckle direction), relative to a calibrated neutral; joint limits +-1.4 / +-1.0 rad; the geometry test checks the hand never cuts into the forearm over the whole range. No ground truth for the angles (no mocap): signs/ranges verified on synthetic hands and a real clip only.
+
+**Calibration**: in the `hand_cam.py` preview press `o` (hand open) and `f` (fist); saved to `calibration.json`, per finger open -> 0, fist -> 1, wrist neutral from the open pose. Unit-tested, not tried with a live webcam.
+
+**Smoothing**: One Euro filter per finger and wrist angle replaces the EMA (`smoothing:=ema` for the old one).
+
+## Experiment: own YOLO11 tracker (not the default)
+
+**Decision: MediaPipe is the live tracker** (`hand_cam.py` default). The YOLO11 and classic trackers are kept as documented experiments: `--tracker yolo|classic` swaps them in and the rest of the pipeline is unchanged. Honest summary: the YOLO model never beat MediaPipe. It is trained on labels *produced by MediaPipe*, so it can at best imitate its teacher (it reaches ~6% keypoint error and 95% open/closed agreement on held-out dataset images, 5.6% / 77.5% on a real webcam clip after fine-tuning on MediaPipe-labelled clips of the same room and person); it has no depth, so no metric curl or wrist angle; it is slower on CPU (18 vs 65 FPS); the GPU path was only run on CUDA in Linux, not on Windows with DirectML. What it was good for: a complete train -> ONNX -> evaluate -> compare loop and a measured answer.
 
 ![pipeline](docs/img/tracker_pipeline.svg)
 
@@ -34,10 +55,6 @@ Windows GPU: `--device auto|cuda|dml|cpu` (DirectML via `onnxruntime-directml`, 
 Not done: evaluation in other rooms / with other people (and the base YOLO was stopped at 23/60 epochs)
 Full tables, per-finger numbers and caveats: [docs/results/README.md](docs/results/README.md).
 
-**Grips** (`hand_controller/grips.py`): open, point, pinch, power as coordinated preshape -> close poses; `/hand/grip` topic or `grip_assist:=true` (gestures Open Hand / Pointing / Pinch / Fist). Closing is **force-limited**: each finger stops when its fingertip contact sensor reads >= 2 N and the joint effort limit caps the squeeze.
-
-**Grasp world**: `./run.sh grasp:=true` (table with ball, cup, pen, palm-down hand with a lift joint, contact sensors). Scripted test `scripts/grasp_test.py`, 5 trials each: **pen 3/5, cup 4/5, ball 0/5** (pinch grip). The power grip did not hold anything (finger geometry), so only the pinch grip is demonstrated.
-
 ## Run it (webcam -> Gazebo hand)
 
 MediaPipe (Python, like the original `gesture_control.py`) runs on **Windows**, because WSL2/Docker cannot
@@ -51,10 +68,23 @@ Needs the `gurdy2/ros:jazzy` image and Docker Desktop with WSLg.
 
 ```
 hand_cam.py -udp 9870-> udp_bridge -/hand/state-> controller_node -+-> /hand/servo_angles (0-180 deg, ch 0-4, thumb reversed)
-(Windows)                                                           +-> /finger_position_controller/commands -> Gazebo (16 joints)
+(Windows)                                                           +-> /finger_position_controller/commands -> Gazebo (18 joints: 12 finger, 4 thumb, 2 wrist)
 ```
 
-Test the ROS side without any camera: `scripts/fake_udp.py 0 0 0 0 1` (little index middle ring thumb, 0..1).
+Test the ROS side without any camera: `scripts/fake_udp.py 0 0 0 0 1` (little index middle ring thumb, 0..1; `--wrist 0.8 0.3` = pronation, flexion in rad; with no arguments it animates fingers and wrist).
+
+### Try it live
+
+```bash
+# WSL: simulation (default world)                      # Windows: camera -> UDP (calibrate with o / f, quit with q)
+cd ~/projects/robotic_prosthetic_hand/ros2_sim         cd C:\hand_ros2\windows ; python hand_cam.py
+./run.sh
+./run.sh grasp:=true auto_grip:=true      # grasp world: a fist / pinch near the ball, cup or pen picks power / pinch grip
+./run.sh smoothing:=ema                   # the old EMA smoothing, to feel the difference
+```
+
+Measure it yourself (headless sim in a background container, `scripts/sim_up.sh [launch args]`, then `scripts/sim_exec.sh ...`):
+`measure_latency.py`, `measure_jitter.py`, `grasp_test.py --trials 5` (see [docs/results](docs/results/README.md)).
 
 ## Tests
 

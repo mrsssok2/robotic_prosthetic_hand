@@ -7,6 +7,8 @@
     ros2 launch hand_bringup hand.launch.py gui:=false         # headless Gazebo
     ros2 launch hand_bringup hand.launch.py rviz:=true
     ros2 launch hand_bringup hand.launch.py grasp:=true        # table with ball / cup / pen, lift joint, contact sensors
+    ros2 launch hand_bringup hand.launch.py grasp:=true auto_grip:=true   # + a fist/pinch near an object picks power/pinch grip
+    ros2 launch hand_bringup hand.launch.py smoothing:=ema     # the original EMA 0.3 smoothing instead of the One Euro filter
 """
 import os
 
@@ -71,6 +73,8 @@ def generate_launch_description():
         DeclareLaunchArgument("input", default_value="udp", description="udp | browser | fake | none"),
         DeclareLaunchArgument("rviz", default_value="false"),
         DeclareLaunchArgument("grasp", default_value="false", description="grasp world: table + objects + lift joint"),
+        DeclareLaunchArgument("smoothing", default_value="one_euro", description="one_euro | ema (original)"),
+        DeclareLaunchArgument("auto_grip", default_value="false", description="grip chosen from the nearest object + hand pose"),
         DeclareLaunchArgument("world", default_value="hand_world.sdf", description="hand_world.sdf | hand_world_cam.sdf"),
         DeclareLaunchArgument("camera", default_value="false", description="bridge /camera/image (hand_world_cam.sdf)"),
         OpaqueFunction(function=_setup),
@@ -78,8 +82,11 @@ def generate_launch_description():
         Node(package="hand_tracker", executable="ws_bridge", output="screen", condition=is_("browser")),
         Node(package="hand_tracker", executable="fake_hand", output="screen", condition=is_("fake")),
         Node(package="hand_tracker", executable="tracker_node", output="screen",
+             parameters=[{"wrist": PythonExpression(["'", source, "' == 'browser'"])}],   # the fake hand has no camera frame
              condition=IfCondition(PythonExpression(["'", source, "' in ('browser', 'fake')"]))),
-        Node(package="hand_controller", executable="controller_node", output="screen"),
+        Node(package="hand_controller", executable="controller_node", output="screen",
+             parameters=[{"smoothing": LaunchConfiguration("smoothing"),
+                          "auto_grip": PythonExpression(["'", LaunchConfiguration("auto_grip"), "' == 'true'"])}]),
         Node(package="rviz2", executable="rviz2", condition=IfCondition(LaunchConfiguration("rviz")),
              arguments=["-d", os.path.join(share("hand_description"), "rviz", "hand.rviz")],
              parameters=[{"use_sim_time": True}]),

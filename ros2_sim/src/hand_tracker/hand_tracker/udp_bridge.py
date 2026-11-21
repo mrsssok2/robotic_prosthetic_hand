@@ -1,10 +1,12 @@
 """UDP bridge: receives finger values from the Windows script (windows/hand_cam.py) -> /hand/state.
 
-Packet (JSON): {"t": epoch_s, "hand": "Right", "gesture": "Fist", "curl": [little, index, middle, ring, thumb]}
+Packet (JSON): {"t": epoch_s, "hand": "Right", "gesture": "Fist", "curl": [little, index, middle, ring, thumb],
+                "wrist": [pronation, flexion]}      (wrist: radians, optional; missing = neutral)
                {"t": epoch_s, "hand": null}  (no hand)
 If nothing valid arrives for `timeout` seconds, a valid=false state is published once.
 """
 import json
+import math
 import socket
 import threading
 
@@ -15,7 +17,7 @@ from hand_interfaces.msg import HandState
 
 
 def parse_packet(raw):
-    """Return (handedness, gesture, [5 curls]) or None for 'no hand' / malformed packets."""
+    """Return (handedness, gesture, [5 curls], [pronation, flexion]) or None for 'no hand' / malformed packets."""
     try:
         data = json.loads(raw)
         if not data.get("hand"):
@@ -23,7 +25,10 @@ def parse_packet(raw):
         curl = [min(1.0, max(0.0, float(c))) for c in data["curl"]]
         if len(curl) != 5:
             return None
-        return str(data["hand"]), str(data.get("gesture", "None")), curl
+        wrist = [float(w) for w in data.get("wrist", (0.0, 0.0))]
+        if len(wrist) != 2 or not all(map(math.isfinite, wrist)):
+            wrist = [0.0, 0.0]
+        return str(data["hand"]), str(data.get("gesture", "None")), curl, wrist
     except (ValueError, TypeError, KeyError, AttributeError):
         return None
 
@@ -52,7 +57,7 @@ class UdpBridge(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.header.frame_id = "camera"
             msg.valid = True
-            msg.handedness, msg.gesture, msg.curl = parsed[0], parsed[1], parsed[2]
+            msg.handedness, msg.gesture, msg.curl, msg.wrist = parsed
             self.last, self.last_rx = msg, self.get_clock().now()
             self.pub.publish(msg)
 

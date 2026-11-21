@@ -10,11 +10,19 @@ node in Docker, which drives the simulated hand.
     python hand_cam.py --camera 1            # another camera
     python hand_cam.py --source clip.mp4     # video file (or a still image) instead of the webcam
 
-Press q (in the preview window) to quit.
+Keys in the preview window:
+    o  calibrate OPEN: hold your hand flat and open for ~1 s   (also sets the wrist's neutral pose: palm to the camera,
+                                                                 fingers up, forearm vertical)
+    f  calibrate FIST: make a tight fist for ~1 s
+    r  clear the calibration          q  quit
+The calibration is saved to calibration.json next to this script (--calibration PATH) and loaded the next time.
+
+Wrist (--tracker mediapipe only): pronation/supination and flexion/extension of the hand are derived from the world landmarks
+(palm normal and wrist -> middle-MCP direction) and sent as "wrist" in radians; they drive the 2 wrist joints of the simulated hand.
 
 UDP packet (JSON, one per frame):
     {"t": <epoch s>, "hand": "Right", "gesture": "Fist", "tracker": "yolo", "track_ms": 21.3,
-     "curl": [little, index, middle, ring, thumb]}
+     "curl": [little, index, middle, ring, thumb], "wrist": [pronation, flexion]}      # wrist only with mediapipe
     {"t": <epoch s>, "hand": null}                      # no hand visible
 """
 import argparse
@@ -25,6 +33,7 @@ import sys
 import time
 
 import cv2
+import numpy as np
 
 # The tested, ROS-free tracking math lives in the repo: src/hand_tracker/hand_tracker/core
 _here = pathlib.Path(__file__).resolve().parent
@@ -32,7 +41,7 @@ for candidate in (_here.parent / "src" / "hand_tracker", _here / "src" / "hand_t
     if (candidate / "hand_tracker" / "core").is_dir():
         sys.path.insert(0, str(candidate))
         break
-from hand_tracker.core import FINGER_ORDER, classify_gesture, is_pinch  # noqa: E402
+from hand_tracker.core import FINGER_ORDER, Calibration, CaptureSession, classify_gesture, is_pinch  # noqa: E402
 from hand_tracker.trackers import make_tracker  # noqa: E402
 
 NAMES = [n.capitalize() for n in FINGER_ORDER]  # Little, Index, Middle, Ring, Thumb
@@ -52,6 +61,11 @@ def parse_args():
     ap.add_argument("--source", help="video file or image instead of the webcam")
     ap.add_argument("--width", type=int, default=640)
     ap.add_argument("--height", type=int, default=480)
+    ap.add_argument("--calibration", default=str(_here / "calibration.json"),
+                    help="calibration file ('o' open / 'f' fist keys), loaded at start if it exists (default: next to this script)")
+    ap.add_argument("--no-calibration", action="store_true", help="ignore and do not load a saved calibration")
+    ap.add_argument("--mirror-source", action="store_true",
+                    help="--source is a selfie-mirrored recording (tracking/record_clip.py makes those); webcams are always mirrored here")
     ap.add_argument("--no-window", action="store_true", help="no preview (headless tests)")
     ap.add_argument("--max-frames", type=int, default=0, help="stop after N frames (tests)")
     return ap.parse_args()
@@ -72,7 +86,7 @@ def open_source(args):
     return cap, None
 
 
-def draw_overlay(frame, fps, gesture, curl):
+def draw_overlay(frame, fps, gesture, curl, wrist=None, status="", calibrated=False):
     cv2.putText(frame, f"FPS: {fps:4.1f}", (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
     cv2.putText(frame, f"Gesture: {gesture}", (10, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 200, 255), 2)
     if curl is None:
@@ -82,6 +96,12 @@ def draw_overlay(frame, fps, gesture, curl):
         cv2.putText(frame, f"{name:<6} {c:4.2f}", (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.rectangle(frame, (140, y - 14), (140 + 100, y + 2), (80, 80, 80), 1)
         cv2.rectangle(frame, (140, y - 14), (140 + int(100 * c), y + 2), (0, 255, 0), -1)
+    if wrist is not None:
+        cv2.putText(frame, f"wrist pron {np.degrees(wrist[0]):+4.0f}  flex {np.degrees(wrist[1]):+4.0f} deg", (10, 232),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 200, 0), 2)
+    h = frame.shape[0]
+    cv2.putText(frame, status or ("calibrated" if calibrated else "o = open, f = fist: calibrate"), (10, h - 12),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255) if status else (200, 200, 200), 2)
 
 
 def main():
@@ -89,7 +109,14 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dest = (args.host, args.port)
     cap, still = open_source(args)
-    tracker = make_tracker(args.tracker, **({"model": args.model, "conf": args.yolo_conf, "device": args.device} if args.tracker == "yolo" else {}))
+    mirrored = not args.source or args.mirror_source        # the webcam frames are flipped below
+    kw = {"model": args.model, "conf": args.yolo_conf, "device": args.device} if args.tracker == "yolo" else {}
+    if args.tracker == "mediapipe":
+        kw["mirrored"] = mirrored
+    tracker = make_tracker(args.tracker, **kw)
+    session = CaptureSession(None if args.no_calibration else Calibration.load(args.calibration))
+    if session.calibration.has_open or session.calibration.has_fist:
+        print(f"calibration loaded from {args.calibration}")
     fps, last, frames = 0.0, time.time(), 0
     if args.tracker == "yolo":
         print(f"yolo runs on: {tracker.active_provider}")
@@ -107,29 +134,48 @@ def main():
         result = tracker.process(frame)
         track_ms = (time.perf_counter() - t0) * 1000
 
-        packet, curl, gesture = {"t": time.time(), "hand": None}, None, "No hand"
+        packet, curl, gesture, wrist, raw, raw_wrist = {"t": time.time(), "hand": None}, None, "No hand", None, None, None
         if result is not None:
-            curl = result.curl
+            raw = np.asarray(result.curl, float)
+            raw_wrist = (result.extra or {}).get("wrist")
+            cal = session.calibration
+            curl = cal.apply(raw) if (cal.has_open or cal.has_fist) else raw
+            wrist = cal.apply_wrist(raw_wrist) if raw_wrist is not None else None
             gesture = classify_gesture(curl)
             if result.keypoints is not None and is_pinch(result.keypoints, curl):
                 gesture = "Pinch"
             packet = {"t": time.time(), "hand": "Right", "gesture": gesture, "tracker": args.tracker,
                       "track_ms": round(track_ms, 2), "curl": [round(float(c), 4) for c in curl]}
+            if wrist is not None:
+                packet["wrist"] = [round(float(a), 4) for a in wrist]
             if result.keypoints is not None:
                 for x, y in result.keypoints:
                     cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 255), -1)
         sock.sendto(json.dumps(packet).encode(), dest)
+        if session.feed(raw, raw_wrist, time.time()) and session.ok and not args.no_calibration:
+            session.calibration.save(args.calibration)
 
         frames += 1
         now = time.time()
         if now - last >= 0.5:
             fps, frames, last = frames / (now - last), 0, now
         if not args.no_window:
-            draw_overlay(frame, fps, gesture, curl)
+            cal = session.calibration
+            draw_overlay(frame, fps, gesture, curl, wrist,
+                         f"{session.message} {100 * session.progress:.0f}%" if session.active else session.message,
+                         cal.has_open or cal.has_fist)
             cv2.putText(frame, f"{args.tracker} {track_ms:4.1f} ms", (10, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
             cv2.imshow("Hand tracker (q to quit)", frame)
-            if (cv2.waitKey(1) & 0xFF) == ord("q"):
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
                 break
+            if key == ord("o"):
+                session.start("open", time.time())
+            elif key == ord("f"):
+                session.start("fist", time.time())
+            elif key == ord("r"):
+                session.reset()
+                pathlib.Path(args.calibration).unlink(missing_ok=True)
         if args.max_frames:
             args.max_frames -= 1
             if args.max_frames == 0:

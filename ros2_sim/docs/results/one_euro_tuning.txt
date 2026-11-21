@@ -1,0 +1,27 @@
+setting                                    noise_gain  lag@.5  lag@1  lag@2  err@1  err@2  t50ms  t90ms
+ema 0.3 rate 4 (before)                         0.512      60     60     55  0.022  0.051    160    260
+min_cutoff 0.3 beta 1.0 rate 10.0               0.245      80     70     70  0.027  0.054     80    120
+min_cutoff 0.3 beta 2.0 rate 10.0               0.319      55     50     50  0.029  0.040     80    120
+min_cutoff 0.3 beta 2.5 rate 10.0               0.349      50     45     45  0.029  0.039     80    120
+min_cutoff 0.3 beta 3.0 rate 10.0               0.376      45     45     45  0.028  0.039     80    120
+min_cutoff 0.3 beta 4.0 rate 10.0               0.416      40     40     40  0.028  0.040     80    120
+min_cutoff 0.5 beta 1.0 rate 10.0               0.272      75     70     65  0.026  0.052     80    120
+min_cutoff 0.5 beta 2.0 rate 10.0               0.336      55     50     50  0.027  0.039     80    120
+min_cutoff 0.5 beta 2.5 rate 10.0               0.363      50     45     45  0.028  0.038     80    120
+min_cutoff 0.5 beta 3.0 rate 10.0               0.386      45     45     45  0.028  0.039     80    120
+min_cutoff 0.5 beta 4.0 rate 10.0               0.422      40     40     40  0.028  0.040     80    120
+min_cutoff 0.8 beta 1.0 rate 10.0               0.310      70     65     60  0.025  0.049     80    120
+min_cutoff 0.8 beta 2.0 rate 10.0               0.363      55     50     50  0.026  0.038     80    120
+min_cutoff 0.8 beta 2.5 rate 10.0               0.384      50     45     45  0.026  0.037     80    120
+min_cutoff 0.8 beta 3.0 rate 10.0               0.402      45     40     40  0.027  0.038     80    120
+min_cutoff 0.8 beta 4.0 rate 10.0               0.435      40     35     35  0.027  0.039     80    120
+min_cutoff 1.0 beta 1.0 rate 10.0               0.333      65     60     60  0.024  0.048     80    120
+min_cutoff 1.0 beta 2.0 rate 10.0               0.379      50     50     45  0.026  0.038     80    120
+min_cutoff 1.0 beta 2.5 rate 10.0               0.397      45     45     45  0.026  0.037     80    120
+min_cutoff 1.0 beta 3.0 rate 10.0               0.415      45     40     40  0.026  0.037     80    120
+min_cutoff 1.0 beta 4.0 rate 10.0               0.445      40     35     35  0.027  0.038     80    120
+min_cutoff 1.5 beta 1.0 rate 10.0               0.384      60     55     55  0.023  0.045     80    120
+min_cutoff 1.5 beta 2.0 rate 10.0               0.417      50     45     45  0.024  0.036     80    120
+min_cutoff 1.5 beta 2.5 rate 10.0               0.432      45     40     40  0.025  0.036     80    120
+min_cutoff 1.5 beta 3.0 rate 10.0               0.446      40     40     40  0.025  0.036     80    120
+min_cutoff 1.5 beta 4.0 rate 10.0               0.472      35     35     35  0.026  0.036     80    120

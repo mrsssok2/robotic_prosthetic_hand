@@ -4,14 +4,18 @@ import rclpy
 from rclpy.node import Node
 
 from hand_interfaces.msg import HandLandmarks, HandState
-from hand_tracker.core import classify_gesture, finger_curls
+from hand_tracker.core import classify_gesture, finger_curls, wrist_angles
 
 
 class TrackerNode(Node):
     def __init__(self):
         super().__init__("hand_tracker")
         self.declare_parameter("timeout", 0.5)  # s without landmarks -> valid=false
+        self.declare_parameter("mirrored", True)  # the landmark source mirrors the image (selfie view)
+        self.declare_parameter("wrist", True)     # derive the wrist angles (needs camera-frame landmarks; the synthetic hand has none)
         self.timeout = self.get_parameter("timeout").value
+        self.mirrored = self.get_parameter("mirrored").value
+        self.use_wrist = self.get_parameter("wrist").value
         self.pub = self.create_publisher(HandState, "/hand/state", 10)
         self.create_subscription(HandLandmarks, "/hand/landmarks", self.on_landmarks, 10)
         self.create_timer(0.1, self.watchdog)
@@ -27,6 +31,8 @@ class TrackerNode(Node):
         out.handedness = msg.handedness
         out.curl = [float(c) for c in curl]
         out.gesture = classify_gesture(curl)
+        if self.use_wrist:
+            out.wrist = [float(a) for a in wrist_angles(pts, msg.handedness, mirrored=self.mirrored)]
         self.last, self.last_rx = out, self.get_clock().now()
         self.pub.publish(out)
 

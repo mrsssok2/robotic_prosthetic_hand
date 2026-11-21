@@ -1,0 +1,502 @@
+[
+ {
+  "object": "pen",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -1.9,
+  "slip_cm": 0.0,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.04,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 0
+ },
+ {
+  "object": "pen",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 8.2,
+  "slip_cm": 0.0,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.16,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.09,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 1
+ },
+ {
+  "object": "pen",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 8.0,
+  "slip_cm": 4.7,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.04,
+   0.0,
+   0.0,
+   0.13
+  ],
+  "hold_force_N": [
+   0.0,
+   0.04,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 2
+ },
+ {
+  "object": "pen",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -28.9,
+  "slip_cm": 12.8,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.15,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 3
+ },
+ {
+  "object": "pen",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 8.1,
+  "slip_cm": 0.1,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.2,
+   0.0,
+   0.0,
+   0.11
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.07
+  ],
+  "close_time_s": null,
+  "trial": 4
+ },
+ {
+  "object": "cup",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 10.0,
+  "slip_cm": 0.0,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 0
+ },
+ {
+  "object": "cup",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 9.5,
+  "slip_cm": 1.2,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   2.81,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   2.66,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 1
+ },
+ {
+  "object": "cup",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -0.0,
+  "slip_cm": 42.9,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   1.52
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 2
+ },
+ {
+  "object": "cup",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 9.2,
+  "slip_cm": 1.0,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   2.81,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   2.72,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 3
+ },
+ {
+  "object": "cup",
+  "grip": "pinch",
+  "settled": true,
+  "success": true,
+  "z_rise_cm": 9.5,
+  "slip_cm": 0.8,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   2.7,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   2.66,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 4
+ },
+ {
+  "object": "ball",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.2,
+  "slip_cm": 74.2,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.22,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 0
+ },
+ {
+  "object": "ball",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 107.1,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.38,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 1
+ },
+ {
+  "object": "ball",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 119.4,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.07,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 2
+ },
+ {
+  "object": "ball",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 113.5,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 3
+ },
+ {
+  "object": "ball",
+  "grip": "pinch",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 74.4,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.13,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 4
+ },
+ {
+  "object": "ball",
+  "grip": "power",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": 0.0,
+  "slip_cm": 49.0,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   0.0,
+   4.59,
+   7.83,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 0
+ },
+ {
+  "object": "ball",
+  "grip": "power",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 95.1,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.19,
+   4.53,
+   0.0,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 1
+ },
+ {
+  "object": "ball",
+  "grip": "power",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 95.1,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   7.6,
+   5.83,
+   8.12,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 2
+ },
+ {
+  "object": "ball",
+  "grip": "power",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.2,
+  "slip_cm": 68.3,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   8.12,
+   6.22,
+   7.7,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 3
+ },
+ {
+  "object": "ball",
+  "grip": "power",
+  "settled": true,
+  "success": false,
+  "z_rise_cm": -29.0,
+  "slip_cm": 90.0,
+  "released": true,
+  "peak_force_N": [
+   0.0,
+   6.63,
+   4.88,
+   7.73,
+   0.0
+  ],
+  "hold_force_N": [
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "close_time_s": null,
+  "trial": 4
+ }
+]

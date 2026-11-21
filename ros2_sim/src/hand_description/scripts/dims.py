@@ -25,9 +25,16 @@ THUMB = dict(
     radii=((0.0105, 0.0098), (0.0095, 0.0088), (0.0085, 0.0068)),
 )
 
-FOREARM = dict(length=0.272, wrist_ab=(0.026, 0.022), bottom_ab=(0.043, 0.038),
-               cuff=dict(z=(-0.032, 0.003), ab=(0.0295, 0.0255)))
-BASE_Z = 0.28                                    # wrist height above the stand plate's underside
+# Wrist: a ball joint sits on the forearm's top face; the palm origin is WRIST_PIVOT above the ball centre (= the pivot of
+# pronation and flexion). The gap keeps the palm's lower edges from cutting into the forearm when the hand flexes: the front
+# (or back) edge of the 31 mm thick palm dips 15.5 mm * sin(angle) about the pivot, so up to +-1.0 rad it stays above the
+# forearm top face when WRIST_PIVOT > 15.5 mm * tan(1.0) = 24 mm.
+WRIST_PIVOT = 0.035
+WRIST_BALL = dict(radius=0.020, neck_radius=0.014)   # visual: dome on the forearm + neck up into the palm
+# forearm frame: origin = the pivot = top face centre of the shell (z up, shell hangs below, cuff just under the top face)
+FOREARM = dict(length=0.272 - WRIST_PIVOT, wrist_ab=(0.026, 0.022), bottom_ab=(0.043, 0.038),
+               cuff=dict(z=(-0.035, 0.0), ab=(0.0295, 0.0255)))
+BASE_Z = 0.28                                    # palm origin (wrist) height above the stand plate's underside
 PLATE = dict(size=(0.20, 0.11, 0.008), center=(0.03, 0.0))   # black acrylic stand plate (x, y centre)
 BOX = dict(size=(0.075, 0.05, 0.042), center=(0.085, 0.0))   # "electronics" block on the plate
 

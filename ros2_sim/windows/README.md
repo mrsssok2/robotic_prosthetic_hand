@@ -32,7 +32,27 @@ WSL2/Docker cannot see the webcam, so MediaPipe runs on Windows and sends the fi
    A preview window shows the mirrored camera, the landmarks, FPS, the gesture and the five finger
    values (Little, Index, Middle, Ring, Thumb). Press **q** in that window to quit.
 
-Options: `--camera 1` (other webcam), `--source clip.mp4` (video file or still image), `--host/--port`
+## Calibration (30 seconds, optional but recommended)
+
+People's hands read differently (a flat hand may be 0.15 curl, a tight fist 0.8), so the simulated hand may never fully open or
+close. In the preview window:
+
+1. Hold your hand **flat and open**, palm to the camera, fingers up, forearm vertical, and press **`o`** (about 1 s, the bar at the bottom counts it).
+2. Make a **tight fist** and press **`f`**.
+
+Every finger is then rescaled so *your* open hand reads 0 and *your* fist reads 1; the open pose also sets the wrist's neutral
+position. It is saved to `calibration.json` next to `hand_cam.py` and loaded next time (`--calibration FILE`, `--no-calibration`);
+**`r`** clears it. If the hand moves during the capture, or a finger barely changes between the two poses, the preview says so.
+
+## Wrist
+
+With the default MediaPipe tracker the hand's **pronation/supination** and **flexion/extension** are measured from the world
+landmarks (palm normal and wrist -> middle-knuckle direction) and drive the two wrist joints of the simulated hand. They are the
+orientation of the hand relative to the calibrated neutral pose (forearm vertical in the image, elbow down, palm to the camera,
+fingers up), so rotate your **hand**, not your whole arm. The preview shows `wrist pron .. flex .. deg`. (`--tracker yolo|classic`
+have no depth, so the wrist stays neutral.)
+
+Options: `--camera 1` (other webcam), `--source clip.mp4` (video file or still image; add `--mirror-source` if it is a selfie recording made by `tracking/record_clip.py`), `--host/--port`
 (default `127.0.0.1:9870`), `--no-window`.
 
 ## Thumb

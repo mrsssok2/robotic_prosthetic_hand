@@ -48,11 +48,14 @@ A ROS 2 rebuild of this project, **simulation only** (no servo hardware needed):
 | Finger value | open / closed (tip vs PIP `y`) → 0° or 180° | proportional **curl 0–1** from 3D joint angles (MCP + PIP + DIP flexion) |
 | Hand orientation | image-`y` comparison | angles are **rotation-, scale- and mirror-invariant** (unit-tested, left/right hand) |
 | Thumb | open/closed by `x` | **sideways sweep** of the tip along the palm's index→little axis; the simulated thumb swings across the palm |
-| Smoothing | EMA 0.3 on the 0/180 target | EMA 0.3 + rate limit + joint limits (`hand_controller`) |
+| Smoothing | EMA 0.3 on the 0/180 target | **One Euro filter** per finger + rate limit + joint limits: 28% less jitter, 50% joint motion after 139 ms instead of 219 ms (`hand_controller`) |
+| Wrist | none | 2 DOF (pronation, flexion) from MediaPipe world landmarks, geometry-tested against the forearm |
+| Calibration | none | `o` open / `f` fist keys in `hand_cam.py`, saved to JSON |
+| Grasping | none | grasp world: auto power/pinch grip from the nearest object; pen 5/5, cup 5/5, **ball 1/5 (unsolved)**, 5 trials each |
 | Servo convention | PCA9685 channels 0–4 = Little, Index, Middle, Ring, Thumb; thumb reversed | **same**, published as degrees on `/hand/servo_angles` |
 | Gestures | Fist, Pointing, Peace, Open Hand, Call Me | same five, rule-based on the curls |
 | Structure | one script | 5 ROS 2 packages, nodes + topics, `ros2_control` position controllers, Gazebo model |
-| Tests | none in this repo | 60 (29 tracking math + UDP parsing, 11 controller, 20 hand geometry) |
+| Tests | none in this repo | 200+ (tracking math, wrist, calibration, UDP parsing, controller, grips, hand geometry) |
 | Hardware | PCA9685 + servos | simulation only: there is no PCA9685 ROS driver node yet (dashed in diagram 1) |
 
 ### 1. Pipeline
@@ -66,10 +69,10 @@ flowchart LR
   end
   subgraph DOCKER["Docker · ROS 2 Jazzy"]
     direction LR
-    udp["udp_bridge"] --> ctrl["controller_node<br/>EMA + rate + joint limits<br/>tendon coupling"]
+    udp["udp_bridge"] --> ctrl["controller_node<br/>One Euro + rate + joint limits<br/>tendon coupling"]
     ctrl --> rc["ros2_control<br/>finger_position_controller"]
     rc --> gz["gz_ros2_control<br/>Gazebo Harmonic"]
-    gz --> hand(["Simulated hand<br/>16 joints"])
+    gz --> hand(["Simulated hand<br/>18 joints"])
   end
   core == "UDP :9870 (JSON)" ==> udp
   ctrl -. "/hand/servo_angles 0-180°<br/>(driver not written yet)" .-> pca["PCA9685 servo driver"]
@@ -102,7 +105,7 @@ flowchart LR
   udp -- "/hand/state<br/>HandState" --> ctrl
   trk -. "/hand/state" .-> ctrl
   ctrl -- "/hand/servo_angles<br/>Float32MultiArray" --> out1(["servo driver interface"])
-  ctrl -- "/finger_position_controller/commands<br/>Float64MultiArray, 16 joints" --> fpc
+  ctrl -- "/finger_position_controller/commands<br/>Float64MultiArray, 18 joints" --> fpc
   cm --- fpc
   cm --- jsb
   fpc --> gzs
@@ -144,6 +147,7 @@ Needs Docker Desktop (WSL2 backend, WSLg for the Gazebo window), a local image `
 ```bash
 cd ~/projects/robotic_prosthetic_hand/ros2_sim
 ./run.sh                 # ./run.sh input:=fake = no camera, animated synthetic hand
+./run.sh grasp:=true auto_grip:=true   # grasp world; a fist near the ball/cup/pen picks power/pinch grip
 ```
 
 **2. Windows, one-time setup** (PowerShell; details in [`ros2_sim/windows/README.md`](ros2_sim/windows/README.md)):
@@ -161,7 +165,7 @@ pip install -r requirements.txt        # mediapipe 0.10.14, opencv-python 4.10, 
 
 ```powershell
 cd C:\hand_ros2\windows
-python hand_cam.py                     # preview window; press q to quit
+python hand_cam.py                     # preview; o = calibrate open hand, f = fist, r = reset, q = quit
 ```
 
 Tests: `cd ros2_sim/src/hand_tracker && python -m pytest` (needs only numpy + pytest), same in `hand_controller`; the geometry tests run in the ROS image (see [`ros2_sim/README.md`](ros2_sim/README.md)).

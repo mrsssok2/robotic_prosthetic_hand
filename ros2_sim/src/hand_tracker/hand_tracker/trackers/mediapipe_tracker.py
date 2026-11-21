@@ -2,16 +2,17 @@
 import cv2
 import numpy as np
 
-from ..core import finger_curls
+from ..core import finger_curls, wrist_angles
 from .base import HandResult, Tracker, curl_from_image_keypoints
 
 
 class MediaPipeTracker(Tracker):
     name = "mediapipe"
 
-    def __init__(self, static_image_mode=False, use_world=True, **_):
+    def __init__(self, static_image_mode=False, use_world=True, mirrored=True, **_):
         import mediapipe as mp
         self.use_world = use_world
+        self.mirrored = mirrored      # the frames are flipped for a selfie view (hand_cam.py does that for the webcam)
         self.hands = mp.solutions.hands.Hands(static_image_mode=static_image_mode, max_num_hands=1,
                                               min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
@@ -23,11 +24,14 @@ class MediaPipeTracker(Tracker):
         lm = res.multi_hand_landmarks[0].landmark
         kp = np.array([[p.x * w, p.y * h] for p in lm])
         curl_2d = curl_from_image_keypoints(kp)
-        curl = curl_2d
+        curl, extra = curl_2d, {"curl_2d": curl_2d}
+        label = res.multi_handedness[0].classification[0].label
         if self.use_world and res.multi_hand_world_landmarks:
-            curl = finger_curls(np.array([[p.x, p.y, p.z] for p in res.multi_hand_world_landmarks[0].landmark]))
+            world = np.array([[p.x, p.y, p.z] for p in res.multi_hand_world_landmarks[0].landmark])
+            curl = finger_curls(world)
+            extra["wrist"] = wrist_angles(world, label, self.mirrored)   # (pronation, flexion) rad, palm normal + wrist->middle-MCP
         score = res.multi_handedness[0].classification[0].score
-        return HandResult(curl, kp, float(score), {"curl_2d": curl_2d})
+        return HandResult(curl, kp, float(score), extra)
 
     def close(self):
         self.hands.close()

@@ -4,7 +4,7 @@
     python3 scripts/gen_meshes.py          # writes ../meshes/*.obj
 
 Fingers/thumb: slightly tapered rounded capsules along +Z of their link (small gap at each joint).
-Palm: rounded box. Thenar pad: ellipsoid. Forearm: long tapered elliptical shell with a wrist cuff.
+Palm: rounded box. Thenar pad: ellipsoid. Forearm: long tapered elliptical shell with a wrist cuff. Wrist: ball joint dome + neck.
 """
 import os
 import sys
@@ -148,6 +148,19 @@ def cuff():
     return lathe(prof)
 
 
+def wrist():
+    """Wrist ball joint in the PALM frame: a dome sitting on the forearm's top face (pivot at z = -WRIST_PIVOT) and a neck up
+    into the palm. A sphere about the pivot, so it never touches the forearm whatever the wrist angles are."""
+    R, rn, zc = dims.WRIST_BALL["radius"], dims.WRIST_BALL["neck_radius"], -dims.WRIST_PIVOT
+    t1 = np.arccos(rn / R)
+    prof = [(0.0, 0.0, zc - 0.002), (R, R, zc - 0.002), (R, R, zc)]
+    for t in np.linspace(0, t1, 8)[1:]:
+        prof.append((R * np.cos(t), R * np.cos(t), zc + R * np.sin(t)))
+    prof.append((rn, rn, 0.004))
+    prof.append((0.0, 0.0, 0.004))
+    return lathe(prof)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     g = dims.GAP
@@ -164,6 +177,7 @@ def main():
     write_obj(f"{OUT}/thenar.obj", *ellipsoid(dims.PAD["radii"]))
     write_obj(f"{OUT}/forearm.obj", *forearm())
     write_obj(f"{OUT}/cuff.obj", *cuff())
+    write_obj(f"{OUT}/wrist.obj", *wrist())
     print("wrote", len(os.listdir(OUT)), "meshes to", os.path.normpath(OUT))
 
 
