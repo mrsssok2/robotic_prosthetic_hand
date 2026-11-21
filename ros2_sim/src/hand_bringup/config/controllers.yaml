@@ -5,6 +5,8 @@ controller_manager:
       type: joint_state_broadcaster/JointStateBroadcaster
     finger_position_controller:
       type: position_controllers/JointGroupPositionController
+    lift_controller:            # only spawned in the grasp world (lift:=true)
+      type: position_controllers/JointGroupPositionController
 
 # order == hand_controller.shaping.JOINT_NAMES
 finger_position_controller:
@@ -12,3 +14,7 @@ finger_position_controller:
     joints: [little_mcp, little_pip, little_dip, index_mcp, index_pip, index_dip,
              middle_mcp, middle_pip, middle_dip, ring_mcp, ring_pip, ring_dip,
              thumb_swing, thumb_opp, thumb_mcp, thumb_ip]
+
+lift_controller:
+  ros__parameters:
+    joints: [lift]

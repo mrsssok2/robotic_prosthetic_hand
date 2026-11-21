@@ -34,3 +34,14 @@ def classify_gesture(curls, open_below: float = 0.35, closed_above: float = 0.6)
         if ok:
             return name
     return NONE
+
+
+def is_pinch(keypoints, curl=None, ratio: float = 0.28) -> bool:
+    """Pinch = thumb tip (4) within ``ratio`` palm widths of the index tip (8); palm width = index MCP (5) to little MCP (17).
+    Works on (21, >=2) image keypoints (no depth needed). If ``curl`` is given, the middle, ring and little fingers must
+    not be closed (otherwise it is a fist with the thumb on top)."""
+    p = np.asarray(keypoints, float)[:, :2]
+    width = np.linalg.norm(p[5] - p[17])
+    if width <= 0 or np.linalg.norm(p[4] - p[8]) >= ratio * width:
+        return False
+    return curl is None or bool(np.all(np.asarray(curl)[[0, 2, 3]] < 0.6))

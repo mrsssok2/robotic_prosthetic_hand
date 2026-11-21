@@ -3,3 +3,43 @@
   ros_type_name: rosgraph_msgs/msg/Clock
   gz_type_name: gz.msgs.Clock
   direction: GZ_TO_ROS
+- ros_topic_name: /contact/little
+  gz_topic_name: /world/hand_world/model/hand/link/little_distal/sensor/little_tip_contact/contact
+  ros_type_name: ros_gz_interfaces/msg/Contacts
+  gz_type_name: gz.msgs.Contacts
+  direction: GZ_TO_ROS
+- ros_topic_name: /contact/ring
+  gz_topic_name: /world/hand_world/model/hand/link/ring_distal/sensor/ring_tip_contact/contact
+  ros_type_name: ros_gz_interfaces/msg/Contacts
+  gz_type_name: gz.msgs.Contacts
+  direction: GZ_TO_ROS
+- ros_topic_name: /contact/middle
+  gz_topic_name: /world/hand_world/model/hand/link/middle_distal/sensor/middle_tip_contact/contact
+  ros_type_name: ros_gz_interfaces/msg/Contacts
+  gz_type_name: gz.msgs.Contacts
+  direction: GZ_TO_ROS
+- ros_topic_name: /contact/index
+  gz_topic_name: /world/hand_world/model/hand/link/index_distal/sensor/index_tip_contact/contact
+  ros_type_name: ros_gz_interfaces/msg/Contacts
+  gz_type_name: gz.msgs.Contacts
+  direction: GZ_TO_ROS
+- ros_topic_name: /contact/thumb
+  gz_topic_name: /world/hand_world/model/hand/link/thumb_dist/sensor/thumb_tip_contact/contact
+  ros_type_name: ros_gz_interfaces/msg/Contacts
+  gz_type_name: gz.msgs.Contacts
+  direction: GZ_TO_ROS
+- ros_topic_name: /object/ball/pose
+  gz_topic_name: /model/ball/pose
+  ros_type_name: tf2_msgs/msg/TFMessage
+  gz_type_name: gz.msgs.Pose_V
+  direction: GZ_TO_ROS
+- ros_topic_name: /object/cup/pose
+  gz_topic_name: /model/cup/pose
+  ros_type_name: tf2_msgs/msg/TFMessage
+  gz_type_name: gz.msgs.Pose_V
+  direction: GZ_TO_ROS
+- ros_topic_name: /object/pen/pose
+  gz_topic_name: /model/pen/pose
+  ros_type_name: tf2_msgs/msg/TFMessage
+  gz_type_name: gz.msgs.Pose_V
+  direction: GZ_TO_ROS

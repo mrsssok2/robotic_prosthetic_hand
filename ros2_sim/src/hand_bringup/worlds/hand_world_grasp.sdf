@@ -1,0 +1,140 @@
+<?xml version="1.0"?>
+<!-- Grasp world: the hand (with a vertical lift joint) in front of a table holding a ball, a cup and a pen.
+     Gravity is ON for the objects; the hand's own links have gravity off (see the xacro), so the weak position
+     controllers do not sag. Objects other than the one being grasped are parked on the table by scripts/grasp_test.py.
+     Table top z = 0.29; palm frame: wrist at z 0.28, knuckles 0.365, the hand is turned palm-down: palm origin at z = 0.36 (lift 0), fingers point -Y and curl down. -->
+<sdf version="1.10">
+  <world name="hand_world">
+    <physics name="2ms" type="dart">
+      <max_step_size>0.002</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors"><render_engine>ogre2</render_engine></plugin>
+    <plugin filename="gz-sim-contact-system" name="gz::sim::systems::Contact"/>
+
+    <gui fullscreen="0">
+      <plugin filename="GzScene3D" name="3D View">
+        <gz-gui>
+          <title>Hand</title>
+          <property type="bool" key="showTitleBar">false</property>
+          <property type="string" key="state">docked</property>
+        </gz-gui>
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <ambient_light>0.55 0.55 0.55</ambient_light>
+        <background_color>0.56 0.61 0.68</background_color>
+        <camera_pose>-0.35 -0.55 0.55 0 0.5 1.05</camera_pose>
+      </plugin>
+    </gui>
+
+    <light type="directional" name="sun">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.3 -0.9</direction>
+    </light>
+
+    <scene><ambient>0.7 0.7 0.7 1</ambient><background>0.56 0.61 0.68 1</background></scene>
+
+    <!-- side camera (+X looking toward -X): sees the finger-flexion plane; only renders while /camera/image has a subscriber -->
+    <model name="side_camera">
+      <static>true</static>
+      <pose>0.5 -0.10 0.38 0 0.12 3.14159</pose>
+      <link name="link">
+        <sensor name="camera" type="camera">
+          <camera>
+            <horizontal_fov>0.95</horizontal_fov>
+            <image><width>800</width><height>600</height></image>
+            <clip><near>0.05</near><far>5</far></clip>
+          </camera>
+          <always_on>1</always_on>
+          <update_rate>15</update_rate>
+          <topic>/camera/image</topic>
+        </sensor>
+      </link>
+    </model>
+
+    <model name="ground">
+      <static>true</static>
+      <link name="link">
+        <collision name="c"><geometry><plane><normal>0 0 1</normal><size>4 4</size></plane></geometry></collision>
+        <visual name="v"><geometry><plane><normal>0 0 1</normal><size>4 4</size></plane></geometry>
+          <material><ambient>0.35 0.37 0.40 1</ambient><diffuse>0.35 0.37 0.40 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- table: top at z = 0.29, starts 3 cm in front of the palm plane -->
+    <model name="table">
+      <static>true</static>
+      <pose>0 -0.15 0.28 0 0 0</pose>
+      <link name="link">
+        <collision name="top">
+          <geometry><box><size>0.9 0.6 0.02</size></box></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>
+        </collision>
+        <visual name="top"><geometry><box><size>0.9 0.6 0.02</size></box></geometry>
+          <material><ambient>0.62 0.45 0.30 1</ambient><diffuse>0.62 0.45 0.30 1</diffuse></material></visual>
+        <visual name="leg_l"><pose>-0.4 -0.25 -0.14 0 0 0</pose><geometry><box><size>0.04 0.04 0.28</size></box></geometry>
+          <material><ambient>0.5 0.36 0.24 1</ambient><diffuse>0.5 0.36 0.24 1</diffuse></material></visual>
+        <visual name="leg_r"><pose>0.4 -0.25 -0.14 0 0 0</pose><geometry><box><size>0.04 0.04 0.28</size></box></geometry>
+          <material><ambient>0.5 0.36 0.24 1</ambient><diffuse>0.5 0.36 0.24 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- ball: r 2 cm, 30 g -->
+    <model name="ball">
+      <pose>0.30 -0.15 0.31 0 0 0</pose>
+      <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+        <publish_model_pose>true</publish_model_pose><use_pose_vector_msg>true</use_pose_vector_msg>
+        <update_frequency>50</update_frequency>
+      </plugin>
+      <link name="link">
+        <velocity_decay><linear>0.6</linear><angular>4.0</angular></velocity_decay>
+        <inertial><mass>0.03</mass><inertia><ixx>4.8e-6</ixx><iyy>4.8e-6</iyy><izz>4.8e-6</izz></inertia></inertial>
+        <collision name="c"><geometry><sphere><radius>0.02</radius></sphere></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+        <visual name="v"><geometry><sphere><radius>0.02</radius></sphere></geometry>
+          <material><ambient>0.85 0.15 0.12 1</ambient><diffuse>0.85 0.15 0.12 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- cup: r 2.5 cm, h 5 cm, 40 g. Visual is an open cup; the collision is a solid cylinder. -->
+    <model name="cup">
+      <pose>0.0 -0.25 0.315 0 0 0</pose>
+      <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+        <publish_model_pose>true</publish_model_pose><use_pose_vector_msg>true</use_pose_vector_msg>
+        <update_frequency>50</update_frequency>
+      </plugin>
+      <link name="link">
+        <velocity_decay><linear>0.6</linear><angular>4.0</angular></velocity_decay>
+        <inertial><mass>0.04</mass><inertia><ixx>1.6e-5</ixx><iyy>1.6e-5</iyy><izz>1.3e-5</izz></inertia></inertial>
+        <collision name="c"><geometry><cylinder><radius>0.025</radius><length>0.05</length></cylinder></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+        <visual name="wall"><geometry><cylinder><radius>0.025</radius><length>0.05</length></cylinder></geometry>
+          <material><ambient>0.2 0.45 0.8 1</ambient><diffuse>0.2 0.45 0.8 1</diffuse></material></visual>
+        <visual name="inside"><pose>0 0 0.004 0 0 0</pose><geometry><cylinder><radius>0.021</radius><length>0.0505</length></cylinder></geometry>
+          <material><ambient>0.08 0.08 0.1 1</ambient><diffuse>0.08 0.08 0.1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- pen: r 6 mm, 12 cm, 10 g, standing on the table -->
+    <model name="pen">
+      <pose>-0.30 -0.15 0.35 0 0 0</pose>
+      <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+        <publish_model_pose>true</publish_model_pose><use_pose_vector_msg>true</use_pose_vector_msg>
+        <update_frequency>50</update_frequency>
+      </plugin>
+      <link name="link">
+        <inertial><mass>0.01</mass><inertia><ixx>1.2e-5</ixx><iyy>1.2e-5</iyy><izz>1.8e-7</izz></inertia></inertial>
+        <collision name="c"><geometry><cylinder><radius>0.006</radius><length>0.12</length></cylinder></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface></collision>
+        <visual name="v"><geometry><cylinder><radius>0.006</radius><length>0.12</length></cylinder></geometry>
+          <material><ambient>0.1 0.1 0.6 1</ambient><diffuse>0.1 0.1 0.6 1</diffuse></material></visual>
+      </link>
+    </model>
+  </world>
+</sdf>

@@ -4,14 +4,17 @@ Same idea as the original gesture_control.py (OpenCV preview, MediaPipe Hands, o
 confidence 0.5) but the finger values are proportional (0..1) and sent to the ROS bridge
 node in Docker, which drives the simulated hand.
 
-    python hand_cam.py                       # webcam 0, UDP -> 127.0.0.1:9870
+    python hand_cam.py                       # webcam 0, MediaPipe, UDP -> 127.0.0.1:9870
+    python hand_cam.py --tracker yolo        # own YOLO11 pose model (models/hand_pose_n320.onnx, onnxruntime)
+    python hand_cam.py --tracker classic     # skin segmentation + contour, no learning
     python hand_cam.py --camera 1            # another camera
     python hand_cam.py --source clip.mp4     # video file (or a still image) instead of the webcam
 
 Press q (in the preview window) to quit.
 
 UDP packet (JSON, one per frame):
-    {"t": <epoch s>, "hand": "Right", "gesture": "Fist", "curl": [little, index, middle, ring, thumb]}
+    {"t": <epoch s>, "hand": "Right", "gesture": "Fist", "tracker": "yolo", "track_ms": 21.3,
+     "curl": [little, index, middle, ring, thumb]}
     {"t": <epoch s>, "hand": null}                      # no hand visible
 """
 import argparse
@@ -22,8 +25,6 @@ import sys
 import time
 
 import cv2
-import mediapipe as mp
-import numpy as np
 
 # The tested, ROS-free tracking math lives in the repo: src/hand_tracker/hand_tracker/core
 _here = pathlib.Path(__file__).resolve().parent
@@ -31,7 +32,8 @@ for candidate in (_here.parent / "src" / "hand_tracker", _here / "src" / "hand_t
     if (candidate / "hand_tracker" / "core").is_dir():
         sys.path.insert(0, str(candidate))
         break
-from hand_tracker.core import FINGER_ORDER, classify_gesture, finger_curls  # noqa: E402
+from hand_tracker.core import FINGER_ORDER, classify_gesture, is_pinch  # noqa: E402
+from hand_tracker.trackers import make_tracker  # noqa: E402
 
 NAMES = [n.capitalize() for n in FINGER_ORDER]  # Little, Index, Middle, Ring, Thumb
 
@@ -40,6 +42,9 @@ def parse_args():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--host", default="127.0.0.1", help="ROS bridge address (Docker publishes it on localhost)")
     ap.add_argument("--port", type=int, default=9870)
+    ap.add_argument("--tracker", choices=("yolo", "mediapipe", "classic"), default="mediapipe",
+                    help="yolo = own YOLO11 pose model (ONNX), mediapipe = baseline, classic = skin + contour, no learning")
+    ap.add_argument("--model", help="ONNX file for --tracker yolo (default: models/hand_pose_n320.onnx)")
     ap.add_argument("--camera", type=int, default=0, help="webcam index")
     ap.add_argument("--source", help="video file or image instead of the webcam")
     ap.add_argument("--width", type=int, default=640)
@@ -81,10 +86,9 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dest = (args.host, args.port)
     cap, still = open_source(args)
-    hands = mp.solutions.hands.Hands(max_num_hands=1, min_detection_confidence=0.5, min_tracking_confidence=0.5)
-    drawing = mp.solutions.drawing_utils
+    tracker = make_tracker(args.tracker, **({"model": args.model} if args.model else {}))
     fps, last, frames = 0.0, time.time(), 0
-    print(f"sending to udp://{args.host}:{args.port} - press q in the preview to quit")
+    print(f"tracker: {args.tracker} - sending to udp://{args.host}:{args.port} - press q in the preview to quit")
     while True:
         if cap is None:
             frame = still.copy()
@@ -94,21 +98,21 @@ def main():
                 break
         if not args.source:
             frame = cv2.flip(frame, 1)  # mirrored selfie view, like the original
-        result = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        t0 = time.perf_counter()
+        result = tracker.process(frame)
+        track_ms = (time.perf_counter() - t0) * 1000
 
         packet, curl, gesture = {"t": time.time(), "hand": None}, None, "No hand"
-        if result.multi_hand_landmarks:
-            lm = result.multi_hand_landmarks[0]
-            # metric world landmarks are best for angles; fall back to image landmarks
-            if result.multi_hand_world_landmarks:
-                pts = np.array([[p.x, p.y, p.z] for p in result.multi_hand_world_landmarks[0].landmark])
-            else:
-                pts = np.array([[p.x, p.y, p.z] for p in lm.landmark])
-            curl = finger_curls(pts)
+        if result is not None:
+            curl = result.curl
             gesture = classify_gesture(curl)
-            label = result.multi_handedness[0].classification[0].label if result.multi_handedness else "Right"
-            packet = {"t": time.time(), "hand": label, "gesture": gesture, "curl": [round(float(c), 4) for c in curl]}
-            drawing.draw_landmarks(frame, lm, mp.solutions.hands.HAND_CONNECTIONS)
+            if result.keypoints is not None and is_pinch(result.keypoints, curl):
+                gesture = "Pinch"
+            packet = {"t": time.time(), "hand": "Right", "gesture": gesture, "tracker": args.tracker,
+                      "track_ms": round(track_ms, 2), "curl": [round(float(c), 4) for c in curl]}
+            if result.keypoints is not None:
+                for x, y in result.keypoints:
+                    cv2.circle(frame, (int(x), int(y)), 3, (0, 255, 255), -1)
         sock.sendto(json.dumps(packet).encode(), dest)
 
         frames += 1
@@ -117,6 +121,7 @@ def main():
             fps, frames, last = frames / (now - last), 0, now
         if not args.no_window:
             draw_overlay(frame, fps, gesture, curl)
+            cv2.putText(frame, f"{args.tracker} {track_ms:4.1f} ms", (10, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
             cv2.imshow("Hand tracker (q to quit)", frame)
             if (cv2.waitKey(1) & 0xFF) == ord("q"):
                 break
@@ -128,6 +133,7 @@ def main():
             time.sleep(0.03)
     if cap is not None:
         cap.release()
+    tracker.close()
     cv2.destroyAllWindows()
 
 

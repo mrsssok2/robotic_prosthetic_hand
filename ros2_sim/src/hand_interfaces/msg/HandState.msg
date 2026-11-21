@@ -3,5 +3,5 @@
 std_msgs/Header header
 bool valid                   # false when tracking was lost (values hold the last good state)
 string handedness
-string gesture               # Fist | Pointing | Peace | Open Hand | Call Me | None
+string gesture               # Fist | Pointing | Peace | Open Hand | Call Me | Pinch | None
 float32[5] curl              # little, index, middle, ring, thumb; 0 = straight, 1 = fully closed

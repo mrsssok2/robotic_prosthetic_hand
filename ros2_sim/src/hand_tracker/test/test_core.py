@@ -100,3 +100,15 @@ def test_thumb_flexing_in_depth_does_not_count():
     moved = hand.copy()
     moved[4, 2] += 0.3
     assert thumb_sweep(moved) == pytest.approx(thumb_sweep(hand))
+
+
+def test_is_pinch():
+    import numpy as np
+    from hand_tracker.core import is_pinch
+    kp = np.zeros((21, 2)); kp[5] = (0, 0); kp[17] = (1, 0)
+    kp[4] = (0.2, 0.5); kp[8] = (0.3, 0.5)
+    assert is_pinch(kp)
+    assert is_pinch(kp, [0.1, 0.6, 0.1, 0.1, 0.5])           # index may be curled
+    assert not is_pinch(kp, [0.9, 0.6, 0.9, 0.9, 0.5])       # fist with the thumb on the index
+    kp[8] = (0.9, 0.5)
+    assert not is_pinch(kp)

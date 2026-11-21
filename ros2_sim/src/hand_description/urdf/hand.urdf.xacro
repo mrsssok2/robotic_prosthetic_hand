@@ -18,6 +18,9 @@
   <xacro:arg name="sim_gazebo" default="false"/>
   <xacro:arg name="controllers_yaml" default=""/>
   <xacro:arg name="base_z" default="0.28"/>
+  <!-- lift:=true puts a vertical prismatic joint (0..0.2 m) between the world and the palm, so a grasped
+       object can be picked up off the table (grasp world). -->
+  <xacro:arg name="lift" default="false"/>
 
   <xacro:property name="use_mimic" value="${'$(arg sim_gazebo)' != 'true'}"/>
   <xacro:property name="MCP_MAX" value="1.57"/>
@@ -28,23 +31,33 @@
   <xacro:property name="TMCP_MAX" value="0.55"/>
   <xacro:property name="TIP_MAX" value="0.5"/>
   <xacro:property name="PALM_H" value="0.085"/>
+  <!-- grasping: joint effort limit = force limit of the closing fingers (N*m); fingertip radius ~9 mm, so
+       0.25 N*m at the MCP is roughly 3-4 N at the tip -->
+  <xacro:property name="FINGER_EFFORT" value="0.10"/>
   <xacro:property name="MESH" value="file://$(find hand_description)/meshes"/>
 
   <material name="pla"><color rgba="0.94 0.94 0.92 1"/></material>
   <material name="black"><color rgba="0.07 0.07 0.08 1"/></material>
 
-  <!-- one printed segment: mesh along +Z of its link -->
-  <xacro:macro name="seg" params="name mesh mass:=0.01">
+  <!-- one printed segment: mesh along +Z of its link, collision = cylinder along the segment (friction is set with
+       the <gazebo> mu1/mu2 below: URDF has no <surface>). Links of one model do not collide with each other
+       (SDF self_collide is false), so the thumb passes through the fingers as in a fist; all touch the objects. -->
+  <xacro:macro name="seg" params="name mesh seglen rad mass:=0.01">
     <link name="${name}">
       <visual>
         <geometry><mesh filename="${MESH}/${mesh}.obj"/></geometry>
         <material name="pla"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 ${seglen/2}"/>
+        <geometry><cylinder radius="${rad}" length="${seglen}"/></geometry>
+      </collision>
       <inertial>
         <mass value="${mass}"/>
         <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
       </inertial>
     </link>
+    <gazebo reference="${name}"><gravity>false</gravity><mu1>1.5</mu1><mu2>1.5</mu2></gazebo>
   </xacro:macro>
 
   <xacro:macro name="empty_link" params="name">
@@ -54,29 +67,36 @@
         <inertia ixx="1e-7" iyy="1e-7" izz="1e-7" ixy="0" ixz="0" iyz="0"/>
       </inertial>
     </link>
+    <gazebo reference="${name}"><gravity>false</gravity></gazebo>
   </xacro:macro>
 
   <!-- axis: rotation axis; master/k: mimic (only when use_mimic) -->
-  <xacro:macro name="joint_r" params="name parent child xyz rpy:='0 0 0' axis:='1 0 0' lo:=0 hi master:='' k:=1.0">
+  <xacro:macro name="joint_r" params="name parent child xyz rpy:='0 0 0' axis:='1 0 0' lo:=0 hi master:='' k:=1.0 effort:=${FINGER_EFFORT}">
     <joint name="${name}" type="revolute">
       <parent link="${parent}"/><child link="${child}"/>
       <origin xyz="${xyz}" rpy="${rpy}"/>
       <axis xyz="${axis}"/>
-      <limit lower="${lo}" upper="${hi}" effort="2.0" velocity="8"/>
+      <limit lower="${lo}" upper="${hi}" effort="${effort}" velocity="8"/>
       <xacro:if value="${master != '' and use_mimic}"><mimic joint="${master}" multiplier="${k}" offset="0"/></xacro:if>
       <dynamics damping="0.01"/>
     </joint>
   </xacro:macro>
 
-  <xacro:macro name="finger" params="name x l1 l2">
-    <xacro:seg name="${name}_proximal" mesh="${name}_prox"/>
-    <xacro:seg name="${name}_middle" mesh="${name}_mid"/>
-    <xacro:seg name="${name}_distal" mesh="${name}_dist"/>
+  <xacro:macro name="finger" params="name x l1 l2 l3 r">
+    <xacro:seg name="${name}_proximal" mesh="${name}_prox" seglen="${l1}" rad="${r}"/>
+    <xacro:seg name="${name}_middle" mesh="${name}_mid" seglen="${l2}" rad="${r*0.84}"/>
+    <xacro:seg name="${name}_distal" mesh="${name}_dist" seglen="${l3}" rad="${r*0.72}"/>
     <xacro:joint_r name="${name}_mcp" parent="palm" child="${name}_proximal" xyz="${x} 0 ${PALM_H}" hi="${MCP_MAX}"/>
     <xacro:joint_r name="${name}_pip" parent="${name}_proximal" child="${name}_middle" xyz="0 0 ${l1}"
                    hi="${MCP_MAX*K_PIP + 0.05}" master="${name}_mcp" k="${K_PIP}"/>
     <xacro:joint_r name="${name}_dip" parent="${name}_middle" child="${name}_distal" xyz="0 0 ${l2}"
                    hi="${MCP_MAX*K_DIP + 0.05}" master="${name}_mcp" k="${K_DIP}"/>
+    <gazebo reference="${name}_distal">
+      <sensor name="${name}_tip_contact" type="contact">
+        <always_on>1</always_on><update_rate>100</update_rate>
+        <contact><collision>${name}_distal_collision</collision></contact>
+      </sensor>
+    </gazebo>
   </xacro:macro>
 
   <link name="world"/>
@@ -100,17 +120,41 @@
       <geometry><mesh filename="${MESH}/cuff.obj"/></geometry>
       <material name="pla"/>
     </visual>
+    <collision>
+      <origin xyz="0 0 0.0425"/>
+      <geometry><box size="0.09 0.031 0.085"/></geometry>
+    </collision>
     <inertial>
       <origin xyz="0 0 0.0425"/>
       <mass value="0.5"/>
       <inertia ixx="1e-3" iyy="1e-3" izz="1e-3" ixy="0" ixz="0" iyz="0"/>
     </inertial>
   </link>
-  <joint name="base" type="fixed">
-    <parent link="world"/><child link="palm"/>
-    <origin xyz="0 0 $(arg base_z)"/>
-  </joint>
+  <gazebo reference="palm"><gravity>false</gravity><mu1>1.5</mu1><mu2>1.5</mu2></gazebo>
+  <xacro:if value="${'$(arg lift)' != 'true'}">
+    <joint name="base" type="fixed">
+      <parent link="world"/><child link="palm"/>
+      <origin xyz="0 0 $(arg base_z)"/>
+    </joint>
+  </xacro:if>
+  <xacro:if value="${'$(arg lift)' == 'true'}">
+    <!-- grasp world: the hand reaches over a table, palm DOWN, fingers pointing -Y (palm frame rotated +90 deg about X),
+         so closing curls the fingers down around an object under the palm. base_z = palm height at lift = 0. -->
+    <xacro:empty_link name="lift_carriage"/>
+    <joint name="lift" type="prismatic">
+      <parent link="world"/><child link="lift_carriage"/>
+      <origin xyz="0 0 $(arg base_z)"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="0" upper="0.2" effort="200" velocity="0.5"/>
+      <dynamics damping="1.0"/>
+    </joint>
+    <joint name="base" type="fixed">
+      <parent link="lift_carriage"/><child link="palm"/>
+      <origin xyz="0 0 0" rpy="1.5707963 0 0"/>
+    </joint>
+  </xacro:if>
 
+  <xacro:if value="${'$(arg lift)' != 'true'}">
   <link name="stand">   <!-- black acrylic plate with an electronics block, like the printed hand's stand -->
     <visual>
       <origin xyz="0.03 0 0.004"/>
@@ -132,12 +176,13 @@
     <parent link="world"/><child link="stand"/>
     <origin xyz="0 0 0"/>
   </joint>
+  </xacro:if>
 
   <!-- index is next to the thumb (+X), little finger on the far side (-X) -->
-  <xacro:finger name="little" x="-0.034"  l1="0.034" l2="0.021"/>
-  <xacro:finger name="ring"   x="-0.0115" l1="0.042" l2="0.027"/>
-  <xacro:finger name="middle" x="0.0115"  l1="0.046" l2="0.029"/>
-  <xacro:finger name="index"  x="0.034"   l1="0.041" l2="0.026"/>
+  <xacro:finger name="little" x="-0.034"  l1="0.034" l2="0.021" l3="0.018" r="0.0075"/>
+  <xacro:finger name="ring"   x="-0.0115" l1="0.042" l2="0.027" l3="0.020" r="0.0085"/>
+  <xacro:finger name="middle" x="0.0115"  l1="0.046" l2="0.029" l3="0.022" r="0.0090"/>
+  <xacro:finger name="index"  x="0.034"   l1="0.041" l2="0.026" l3="0.020" r="0.0085"/>
 
   <!-- ===== thumb: swing (sideways across the palm) -> opposition -> MCP flex -> IP flex ===== -->
   <xacro:empty_link name="thumb_mount"/>
@@ -146,9 +191,9 @@
     <origin xyz="0.046 -0.037 0.027"/>
   </joint>
   <xacro:empty_link name="thumb_swing_link"/>
-  <xacro:seg name="thumb_meta" mesh="thumb_meta"/>
-  <xacro:seg name="thumb_prox" mesh="thumb_prox"/>
-  <xacro:seg name="thumb_dist" mesh="thumb_dist"/>
+  <xacro:seg name="thumb_meta" mesh="thumb_meta" seglen="0.034" rad="0.0098"/>
+  <xacro:seg name="thumb_prox" mesh="thumb_prox" seglen="0.030" rad="0.0088"/>
+  <xacro:seg name="thumb_dist" mesh="thumb_dist" seglen="0.024" rad="0.0068"/>
   <!-- swing about -Y: positive swings the tip sideways across the palm toward -X (the little finger).
        The 70 deg open angle (tilt from the index finger) is added after the joint, at thumb_opp; rotations about Y add. -->
   <xacro:joint_r name="thumb_swing" parent="thumb_mount" child="thumb_swing_link" xyz="0 0 0" axis="0 -1 0" hi="${SWING_MAX}"/>
@@ -161,6 +206,13 @@
   <xacro:joint_r name="thumb_ip" parent="thumb_prox" child="thumb_dist" xyz="0 0 0.030" axis="-1 0 0" hi="${TIP_MAX}"
                  master="thumb_swing" k="${TIP_MAX/SWING_MAX}"/>
 
+  <gazebo reference="thumb_dist">
+    <sensor name="thumb_tip_contact" type="contact">
+      <always_on>1</always_on><update_rate>100</update_rate>
+      <contact><collision>thumb_dist_collision</collision></contact>
+    </sensor>
+  </gazebo>
+
   <xacro:if value="$(arg sim_gazebo)">
     <ros2_control name="GazeboSimSystem" type="system">
       <hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>
@@ -172,6 +224,7 @@
         </joint>
       </xacro:macro>
       <xacro:macro name="act_finger" params="f"><xacro:act name="${f}_mcp"/><xacro:act name="${f}_pip"/><xacro:act name="${f}_dip"/></xacro:macro>
+      <xacro:if value="${'$(arg lift)' == 'true'}"><xacro:act name="lift"/></xacro:if>
       <xacro:act_finger f="little"/><xacro:act_finger f="ring"/><xacro:act_finger f="middle"/><xacro:act_finger f="index"/>
       <xacro:act name="thumb_swing"/><xacro:act name="thumb_opp"/><xacro:act name="thumb_mcp"/><xacro:act name="thumb_ip"/>
     </ros2_control>

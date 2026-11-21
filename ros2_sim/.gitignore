@@ -10,3 +10,9 @@ log/
 *.db3
 *.mcap
 !docs/**
+data/
+runs/
+*.pt
+*.onnx
+!docs/**
+!models/*.onnx
