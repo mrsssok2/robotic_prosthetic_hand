@@ -75,8 +75,44 @@ def thumb_sweep(landmarks) -> float:
     return float(np.dot(pts[THUMB_TIP] - pts[INDEX_MCP], lateral) / width**2)
 
 
-def finger_curls(landmarks, config: CurlConfig | None = None) -> np.ndarray:
-    """Curl per finger in FINGER_ORDER (little, index, middle, ring, thumb), each in [0, 1]."""
+# 2-D curl: tip-to-wrist distance / MCP-to-wrist distance is ~1.95 for a straight finger and ~0.75 in a fist (medians over MediaPipe-labelled validation images)
+OPEN_RATIO, CLOSED_RATIO = 1.95, 0.75
+
+
+def has_depth(landmarks) -> bool:
+    pts = np.asarray(landmarks, float)
+    return pts.ndim == 2 and pts.shape[1] >= 3 and bool(np.ptp(pts[:, 2]) > 1e-9)
+
+
+def finger_curls_2d(landmarks, config: CurlConfig | None = None) -> np.ndarray:
+    """Curl from image-plane keypoints only (YOLO gives no depth).
+
+    Each finger = 0.7 x angle cue + 0.3 x distance cue, both invariant to rotation, scale and mirroring:
+      * joint angles in the image plane (same as the 3-D method; foreshortening makes it under-read when a finger points
+        at the camera), and
+      * tip-to-wrist distance relative to the finger's own wrist-to-MCP distance (shrinks as the finger folds towards the palm,
+        which stays visible when the angles are foreshortened).
+    The thumb keeps the palm-axis sweep (already 2-D).
+    """
+    cfg = config or CurlConfig()
+    pts = _as_landmarks(np.c_[np.asarray(landmarks, float)[:, :2], np.zeros(NUM_LANDMARKS)])
+    out = finger_curls(pts, cfg, method="3d")
+    for i, name in enumerate(FINGER_ORDER[:4]):
+        chain = FINGER_CHAINS[name]
+        wrist, mcp, tip = pts[chain[0]], pts[chain[1]], pts[chain[-1]]
+        ratio = np.linalg.norm(tip - wrist) / max(np.linalg.norm(mcp - wrist), _EPS)
+        dist_curl = np.clip((OPEN_RATIO - ratio) / (OPEN_RATIO - CLOSED_RATIO), 0.0, 1.0)
+        out[i] = 0.7 * out[i] + 0.3 * dist_curl
+    return out
+
+
+def finger_curls(landmarks, config: CurlConfig | None = None, method: str = "auto") -> np.ndarray:
+    """Curl per finger in FINGER_ORDER (little, index, middle, ring, thumb), each in [0, 1].
+
+    Uses the 3-D joint angles when the landmarks carry depth (MediaPipe); with (21, 2) input or all-equal z (YOLO) it
+    switches to the 2-D method (`finger_curls_2d`) automatically. method="3d" / "2d" forces one."""
+    if method == "2d" or (method == "auto" and not has_depth(landmarks)):
+        return finger_curls_2d(landmarks, config)
     cfg = config or CurlConfig()
     flex = joint_flexions(landmarks)
     out = np.empty(len(FINGER_ORDER))

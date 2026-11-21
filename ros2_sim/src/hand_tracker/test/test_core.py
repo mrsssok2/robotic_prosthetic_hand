@@ -1,8 +1,12 @@
 import numpy as np
 import pytest
 
-from hand_tracker.core import FINGER_ORDER, classify_gesture, finger_curls, joint_flexions, thumb_sweep
+from functools import partial
+
+from hand_tracker.core import FINGER_ORDER, classify_gesture, finger_curls as _finger_curls, joint_flexions, thumb_sweep, finger_curls_2d, has_depth
 from hand_tracker.core.synthetic import make_hand, pose
+
+finger_curls = partial(_finger_curls, method="3d")   # the synthetic hands are planar (z = 0)
 
 ALL = ("little", "index", "middle", "ring", "thumb")
 
@@ -112,3 +116,20 @@ def test_is_pinch():
     assert not is_pinch(kp, [0.9, 0.6, 0.9, 0.9, 0.5])       # fist with the thumb on the index
     kp[8] = (0.9, 0.5)
     assert not is_pinch(kp)
+
+
+def test_auto_uses_2d_without_depth():
+    hand = pose(("middle",))[:, :2]
+    assert not has_depth(hand)
+    np.testing.assert_allclose(_finger_curls(hand), finger_curls_2d(hand))
+    assert has_depth(np.c_[hand, np.linspace(0, 1, 21)])
+
+
+def test_2d_curl_extremes_and_monotonic():
+    np.testing.assert_allclose(finger_curls_2d(pose()[:, :2])[:4], 0.0, atol=0.25)
+    assert np.all(finger_curls_2d(pose(("little", "index", "middle", "ring"))[:, :2])[:4] > 0.8)
+    prev = -1
+    for deg in range(0, 181, 15):
+        c = finger_curls_2d(make_hand({"middle": (deg / 2, deg / 3, deg / 6)})[:, :2])[2]
+        assert c >= prev - 1e-9
+        prev = c

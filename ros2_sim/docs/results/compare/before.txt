@@ -1,0 +1,7 @@
+# YOLO (hand_pose_n320, 23 epochs @320) vs MediaPipe, 100 held-out dataset hands pasted into 640x480 frames (hand height = scale x 480)
+# curl = old 2-D-angles-only method (z=0)
+scale | frames | MP found | YOLO found | kp err %diag | curl MAE | open/closed agree
+ 1.00 |    100 |    100% |      100% |        10.4 |    0.267 |   71.6%
+ 0.60 |    100 |     96% |      100% |        11.8 |    0.279 |   69.6%
+ 0.40 |    100 |     93% |       64% |        17.1 |    0.300 |   68.0%
+ 0.25 |    100 |     68% |        6% |        25.9 |    0.178 |   84.0%
