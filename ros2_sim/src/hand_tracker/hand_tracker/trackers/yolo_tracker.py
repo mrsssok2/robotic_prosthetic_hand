@@ -10,7 +10,7 @@ import numpy as np
 
 from .base import HandResult, Tracker, curl_from_image_keypoints
 
-DEFAULT_MODEL = pathlib.Path(__file__).resolve().parents[3] / "models" / "hand_pose_n320.onnx"
+DEFAULT_MODEL = pathlib.Path(__file__).resolve().parents[3] / "models" / "hand_pose_n640.onnx"
 
 
 def letterbox(img, size):
@@ -30,7 +30,7 @@ class YoloTracker(Tracker):
         import onnxruntime as ort
         path = pathlib.Path(model) if model else DEFAULT_MODEL
         if not path.exists():
-            raise FileNotFoundError(f"{path} not found - run tracking/train_yolo.py (or copy models/hand_pose_n320.onnx)")
+            raise FileNotFoundError(f"{path} not found - run tracking/train_yolo.py (or copy models/hand_pose_n640.onnx)")
         avail = ort.get_available_providers()
         providers = providers or [p for p in ("CUDAExecutionProvider", "CPUExecutionProvider") if p in avail]
         self.sess = ort.InferenceSession(str(path), providers=providers)

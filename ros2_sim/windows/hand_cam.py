@@ -5,7 +5,7 @@ confidence 0.5) but the finger values are proportional (0..1) and sent to the RO
 node in Docker, which drives the simulated hand.
 
     python hand_cam.py                       # webcam 0, MediaPipe, UDP -> 127.0.0.1:9870
-    python hand_cam.py --tracker yolo        # own YOLO11 pose model (models/hand_pose_n320.onnx, onnxruntime)
+    python hand_cam.py --tracker yolo        # own YOLO11 pose model (models/hand_pose_n640.onnx, onnxruntime)
     python hand_cam.py --tracker classic     # skin segmentation + contour, no learning
     python hand_cam.py --camera 1            # another camera
     python hand_cam.py --source clip.mp4     # video file (or a still image) instead of the webcam
@@ -44,7 +44,7 @@ def parse_args():
     ap.add_argument("--port", type=int, default=9870)
     ap.add_argument("--tracker", choices=("yolo", "mediapipe", "classic"), default="mediapipe",
                     help="yolo = own YOLO11 pose model (ONNX), mediapipe = baseline, classic = skin + contour, no learning")
-    ap.add_argument("--model", help="ONNX file for --tracker yolo (default: models/hand_pose_n320.onnx)")
+    ap.add_argument("--model", help="ONNX file for --tracker yolo (default: models/hand_pose_n640.onnx)")
     ap.add_argument("--yolo-conf", type=float, default=0.25, help="detection confidence for --tracker yolo")
     ap.add_argument("--camera", type=int, default=0, help="webcam index")
     ap.add_argument("--source", help="video file or image instead of the webcam")

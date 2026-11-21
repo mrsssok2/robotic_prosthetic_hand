@@ -4,7 +4,7 @@ Accuracy: held-out hand-keypoints images (data/test.txt, never seen in training 
 recorded clips (--clips DIR, videos; the reference there is MediaPipe run on the same frames, so it measures agreement
 with MediaPipe, not truth).  Speed: FPS + latency of ``tracker.process`` on 640x480 frames.
 
-    tracking/run_in_docker.sh python tracking/evaluate.py --onnx models/hand_pose_n320.onnx --out docs/results
+    tracking/run_in_docker.sh python tracking/evaluate.py --onnx models/hand_pose_n640.onnx --out docs/results
 
 REFERENCE LABELS COME FROM MEDIAPIPE: the Ultralytics hand-keypoints dataset was auto-labelled with MediaPipe Hands.
 "Error vs the labels" therefore means "error vs MediaPipe's output on that image", and MediaPipe is evaluated against
@@ -149,7 +149,7 @@ def eval_clips(trackers, clips_dir, stride=2):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--onnx", default=str(ROOT / "models" / "hand_pose_n320.onnx"))
+    ap.add_argument("--onnx", default=str(ROOT / "models" / "hand_pose_n640.onnx"))
     ap.add_argument("--images", default=str(ROOT / "data" / "test.txt"))
     ap.add_argument("--limit", type=int, default=3000)
     ap.add_argument("--clips", help="directory of recorded .mp4 clips (optional)")

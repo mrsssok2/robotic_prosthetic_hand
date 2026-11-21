@@ -1,6 +1,6 @@
 # Results
 
-Own YOLO11 hand-pose tracker vs the MediaPipe baseline vs a classic skin/contour tracker. Accuracy on **3000 held-out images** of the Ultralytics hand-keypoints dataset (never used for training or checkpoint selection); model `hand_pose_n320.onnx`.
+Own YOLO11 hand-pose tracker vs the MediaPipe baseline vs a classic skin/contour tracker. Accuracy on **3000 held-out images** of the Ultralytics hand-keypoints dataset (never used for training or checkpoint selection); model `hand_pose_n640.onnx`.
 
 ## Read this first: the labels come from MediaPipe
 
@@ -10,10 +10,10 @@ The Ultralytics hand-keypoints dataset was auto-labelled by running MediaPipe Ha
 
 | tracker | hand found | keypoint NME (% of box diag) | PCK@0.05 | curl MAE (0-1) | open/closed acc. |
 |---|---|---|---|---|---|
-| yolo | 99.9% | 6.19 | 78.0% | 0.075 | 95.3% |
-| mediapipe | 100.0% | 0.66 | 98.7% | 0.028 | 99.5% |
-| classic | 100.0% | n/a | n/a | 0.435 | 61.9% |
-| *always-open / majority guess* | - | - | - | - | 75.9% |
+| yolo | 99.9% | 5.92 | 77.9% | 0.081 | 95.3% |
+| mediapipe | 100.0% | 0.66 | 98.7% | 0.030 | 99.5% |
+| classic | 100.0% | n/a | n/a | 0.437 | 61.8% |
+| *always-open / majority guess* | - | - | - | - | 76.0% |
 
 A missed detection counts as wrong for open/closed accuracy. Closed = curl >= 0.5. The classic tracker has no keypoints, so no keypoint error. Classic thresholds were tuned on the validation split, not the test images.
 
@@ -23,9 +23,9 @@ Per-finger curl MAE:
 
 | tracker | little | index | middle | ring | thumb |
 |---|---|---|---|---|---|
-| yolo | 0.094 | 0.070 | 0.061 | 0.071 | 0.079 |
-| mediapipe | 0.041 | 0.029 | 0.030 | 0.033 | 0.005 |
-| classic | 0.469 | 0.416 | 0.424 | 0.442 | 0.425 |
+| yolo | 0.101 | 0.080 | 0.069 | 0.081 | 0.076 |
+| mediapipe | 0.043 | 0.033 | 0.033 | 0.035 | 0.005 |
+| classic | 0.468 | 0.417 | 0.428 | 0.447 | 0.425 |
 
 ## Speed and latency
 
@@ -33,10 +33,10 @@ Per-finger curl MAE:
 
 | tracker | FPS | latency mean | p50 | p95 |
 |---|---|---|---|---|
-| yolo (onnx cpu) | 33.7 | 29.7 ms | 28.3 ms | 37.2 ms |
-| mediapipe (cpu) | 38.7 | 25.8 ms | 22.2 ms | 46.5 ms |
-| classic (cpu) | 57.1 | 17.5 ms | 15.8 ms | 36.9 ms |
-| yolo (onnx cuda) | 78.1 | 12.8 ms | 12.3 ms | 18.0 ms |
+| yolo (onnx cpu) | 18.4 | 54.3 ms | 53.1 ms | 63.8 ms |
+| mediapipe (cpu) | 65.0 | 15.4 ms | 13.0 ms | 27.1 ms |
+| classic (cpu) | 93.1 | 10.7 ms | 9.5 ms | 21.9 ms |
+| yolo (onnx cuda) | 104.9 | 9.5 ms | 8.9 ms | 15.4 ms |
 
 ![speed](speed.png)
 
@@ -55,10 +55,10 @@ End to end (tracker p50 + time to 50% closure), excluding camera capture:
 
 | tracker | tracker p50 | + to 50% closure | = |
 |---|---|---|---|
-| yolo (onnx cpu) | 28 ms | 226 ms | 254 ms |
-| mediapipe (cpu) | 22 ms | 226 ms | 248 ms |
-| classic (cpu) | 16 ms | 226 ms | 241 ms |
-| yolo (onnx cuda) | 12 ms | 226 ms | 238 ms |
+| yolo (onnx cpu) | 53 ms | 226 ms | 279 ms |
+| mediapipe (cpu) | 13 ms | 226 ms | 239 ms |
+| classic (cpu) | 10 ms | 226 ms | 235 ms |
+| yolo (onnx cuda) | 9 ms | 226 ms | 234 ms |
 
 ## Grasp test (Gazebo, scripted)
 

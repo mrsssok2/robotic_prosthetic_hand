@@ -74,7 +74,7 @@ def frames(a):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--onnx", default=str(ROOT / "models" / "hand_pose_n320.onnx"))
+    ap.add_argument("--onnx", default=str(ROOT / "models" / "hand_pose_n640.onnx"))
     ap.add_argument("--images"); ap.add_argument("--scales", default="1.0,0.6,0.4,0.25"); ap.add_argument("--n", type=int, default=150)
     ap.add_argument("--source"); ap.add_argument("--stride", type=int, default=3)
     ap.add_argument("--camera", type=int, default=0)

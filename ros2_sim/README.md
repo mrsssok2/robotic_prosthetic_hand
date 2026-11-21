@@ -18,15 +18,15 @@ Status: steps 1-6 of 8 (see [docs/design.md](docs/design.md)); metrics, video-fi
 ![pipeline](docs/img/tracker_pipeline.svg)
 
 - **yolo**: YOLO11n-pose trained on the Ultralytics hand-keypoints dataset (21 keypoints) on the RTX 4050, exported to ONNX
-  (`models/hand_pose_n320.onnx`, runs with onnxruntime only). Training: `tracking/train_yolo.py`.
+  (`models/hand_pose_n640.onnx`, runs with onnxruntime only): 23 epochs at 320, then 15 epochs fine-tuned at 640 on webcam-style composites (small hands, backlight). Training: `tracking/train_yolo.py`; live debugging: `tracking/compare_live.py`. On small hands the first model lost the hand (found 64% at 0.4 of frame height, 6% at 0.25); the fine-tuned one finds it 100%, but fingertips of extended fingers (e.g. pointing) are still often under-reached, see `docs/results/compare/`.
 - **classic**: skin segmentation + palm centre + radial profile -> open/closed per finger (`trackers/classic_tracker.py`).
 - **Honest caveat:** the dataset labels were produced by MediaPipe, so "error" means "difference from MediaPipe", and MediaPipe scores ~0 against its own labels.
 
 | (3000 held-out images) | hand found | keypoint NME | curl MAE | open/closed acc. | FPS 640x480 | latency p50 |
 |---|---|---|---|---|---|---|
-| yolo (ONNX, CPU / CUDA) | 99.9% | 6.2% of box diag | 0.075 | 95.3% | 34 / 78 | 28 / 12 ms |
-| mediapipe (CPU) | 100% | ~0.7% (reference) | ~0.03 (reference) | ~99.5% | 39 | 22 ms |
-| classic (CPU) | 100% | n/a | 0.435 | 61.9% (majority guess: 75.9%) | 57 | 16 ms |
+| yolo n640 (ONNX, CPU / CUDA) | 99.9% | 5.9% of box diag | 0.081 | 95.3% | 18 / 105 | 53 / 9 ms |
+| mediapipe (CPU) | 100% | ~0.7% (reference) | ~0.03 (reference) | ~99.5% | 65 | 13 ms |
+| classic (CPU) | 100% | n/a | 0.437 | 61.8% (majority guess: 75.9%) | 93 | 10 ms |
 
 UDP packet to the Gazebo hand reaching 50% closure: 226 ms median (mostly the controller's smoothing); add the tracker latency for end to end (about 240-255 ms, no camera).
 Not done: evaluation on real webcam clips (no camera in WSL; `tracking/record_clip.py` + `evaluate.py --clips` are ready), and YOLO was stopped at 23/60 epochs.
