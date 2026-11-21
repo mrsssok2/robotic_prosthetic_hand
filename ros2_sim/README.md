@@ -73,13 +73,19 @@ hand_cam.py -udp 9870-> udp_bridge -/hand/state-> controller_node -+-> /hand/ser
 
 Test the ROS side without any camera: `scripts/fake_udp.py 0 0 0 0 1` (little index middle ring thumb, 0..1; `--wrist 0.8 0.3` = pronation, flexion in rad; with no arguments it animates fingers and wrist).
 
+### Reach control in the grasp world (move over the cup, make a fist)
+
+In `grasp:=true` the hand base is a planar x/y + vertical joint chain (`reach_x`, `reach_y`, `lift`). With **`m`** on in the `hand_cam.py` preview your hand position in the image moves it: left/right = x, up/down = further/nearer over the table, hand closer to the camera (bigger wrist-to-middle-knuckle length) = lower. Dead zone 8%, One Euro smoothing, 0.4 m/s rate limit, workspace x +-0.35 m, y -0.25..0.05 m, lift -0.03..0.15 m (palm stays >= 2 cm above the table). **`c`** re-centres (current pose = middle of the workspace); with reach off the base stays put. Fingers, wrist and auto-grip work as before, so: move over the cup, lower, make a fist.
+Tested with the scripted `fake_udp.py --demo cup` (below): reach, auto power grip, 9.4 cm lift, release. **Not tried with a live webcam.** The pen demo failed (the arriving hand knocked the standing pen over) and the ball is the unsolved object, so use the **cup**.
+
 ### Try it live
 
 ```bash
 # WSL: simulation (default world)                      # Windows: camera -> UDP (calibrate with o / f, quit with q)
 cd ~/projects/robotic_prosthetic_hand/ros2_sim         cd C:\hand_ros2\windows ; python hand_cam.py
 ./run.sh
-./run.sh grasp:=true auto_grip:=true      # grasp world: a fist / pinch near the ball, cup or pen picks power / pinch grip
+./run.sh grasp:=true auto_grip:=true      # grasp world: reach (m / c keys) + a fist / pinch near the cup picks the grip
+# no camera:  scripts/sim_exec.sh python3 scripts/fake_udp.py --demo cup   (after scripts/sim_up.sh grasp:=true auto_grip:=true)
 ./run.sh smoothing:=ema                   # the old EMA smoothing, to feel the difference
 ```
 

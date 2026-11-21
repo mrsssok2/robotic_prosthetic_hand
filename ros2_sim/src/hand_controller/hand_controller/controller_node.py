@@ -6,6 +6,9 @@ Three ways the finger targets are produced:
     with auto_grip:=true a closing hand (Fist / Pinch) near an object picks the grip from the object (grips.select_grip):
     power for the ball and the cup, pinch for the pen;
   * scripted: publish a grip name (open | point | pinch | power) on /hand/grip, 'tracker' returns control to /hand/state.
+Reach (grasp world): when the camera script sends a hand position (HandState.reach_valid, [x, y, closeness] in -1..1), it is
+smoothed (One Euro), scaled to the workspace (REACH_HOME +- REACH_HALF, which keeps the palm above the table), rate-limited
+(reach_max_rate m/s) and sent to /reach_controller (x, y) and /lift_controller. With no reach data the base stays where it is.
 Smoothing: each finger curl and each wrist angle goes through a One Euro filter when a sample arrives (smoothing:=one_euro,
 default); smoothing:=ema is the original EMA 0.3 + 4 curl/s rate limit, kept for before/after measurements. A rate limiter
 (max_rate) follows the filter at the 50 Hz control tick.
@@ -22,7 +25,7 @@ from std_msgs.msg import Float32MultiArray, Float64MultiArray, Int32, String
 from tf2_msgs.msg import TFMessage
 
 from hand_controller.grips import CLOSING_GESTURES, FINGERS, GESTURE_TO_GRIP, GRIPS, OBJECT_WIDTH, GripPlanner, select_grip
-from hand_controller.shaping import JOINT_NAMES, WRIST_LIMITS, OneEuroFilter, Shaper, joint_targets, servo_angles
+from hand_controller.shaping import JOINT_NAMES, REACH_HALF, REACH_HOME, WRIST_LIMITS, OneEuroFilter, Shaper, joint_targets, servo_angles
 from hand_interfaces.msg import HandState
 
 try:  # only present with ros_gz (simulation); the node also runs without it
@@ -62,6 +65,9 @@ class ControllerNode(Node):
         self.declare_parameter("grip_assist", False)
         self.declare_parameter("auto_grip", False)        # grip from the nearest object + hand pose (implies grip_assist)
         self.declare_parameter("reach", 0.20)             # m: an object closer than this to the palm selects the grip
+        self.declare_parameter("reach_max_rate", 0.4)     # m/s
+        self.declare_parameter("reach_min_cutoff", 0.6)   # One Euro for the reach command (Hz)
+        self.declare_parameter("reach_beta", 1.0)
         self.declare_parameter("palm_base_z", 0.36)       # grasp world: palm height at lift = 0
         self.declare_parameter("f_hold", 2.0)    # N: a finger stops closing at this fingertip force
         self.declare_parameter("f_max", 5.0)     # N: above this it backs off
@@ -80,6 +86,10 @@ class ControllerNode(Node):
         self.auto_grip = self.get_parameter("auto_grip").value
         self.assist = self.get_parameter("grip_assist").value or self.auto_grip
         self.reach, self.palm_base_z = self.get_parameter("reach").value, self.get_parameter("palm_base_z").value
+        self.reach_filter = OneEuroFilter(3, min_cutoff=self.get_parameter("reach_min_cutoff").value, beta=self.get_parameter("reach_beta").value)
+        self.reach_shaper = Shaper(3, 1.0, self.get_parameter("reach_max_rate").value, lo=REACH_HOME - REACH_HALF, hi=REACH_HOME + REACH_HALF)
+        self.reach_cmd = None      # smoothed [x, y, closeness]; None until the camera sends one
+        self.reach_active = False
         self.target = np.zeros(5)  # curl x5 after the filter; held when tracking is lost
         self.wrist_target = np.zeros(2)
         self.last_rx = None
@@ -96,6 +106,8 @@ class ControllerNode(Node):
         self.blocked = np.zeros(5, bool)
         self.servo_pub = self.create_publisher(Float32MultiArray, "/hand/servo_angles", 10)
         self.joint_pub = self.create_publisher(Float64MultiArray, "/finger_position_controller/commands", 10)
+        self.reach_pub = self.create_publisher(Float64MultiArray, "/reach_controller/commands", 10)
+        self.lift_pub = self.create_publisher(Float64MultiArray, "/lift_controller/commands", 10)
         self.force_pub = self.create_publisher(Float32MultiArray, "/hand/fingertip_force", 10)
         self.phase_pub = self.create_publisher(String, "/hand/grip_state", 10)
         self.contact_pub = self.create_publisher(Float32MultiArray, "/hand/contact", 10)   # 1 = fingertip force or blocked
@@ -155,7 +167,7 @@ class ControllerNode(Node):
         """(name, distance to the palm in m) of the closest object, or None."""
         if not self.objects:
             return None
-        palm = np.array([0.0, 0.0, self.palm_base_z + self.lift])
+        palm = np.array([self.joint_pos.get("reach_x", 0.0), self.joint_pos.get("reach_y", 0.0), self.palm_base_z + self.lift])
         name = min(self.objects, key=lambda n: np.linalg.norm(self.objects[n] - palm))
         return name, float(np.linalg.norm(self.objects[name] - palm))
 
@@ -169,6 +181,11 @@ class ControllerNode(Node):
         if self.one_euro:
             curl, wrist = self.curl_filter(curl, dt), self.wrist_filter(wrist, dt)
         self.target, self.wrist_target = curl, wrist
+        if msg.reach_valid:
+            if not self.reach_active:       # reach just switched on: start from where the base is
+                self.reach_shaper.value = np.array([self.joint_pos.get("reach_x", 0.0), self.joint_pos.get("reach_y", 0.0), self.lift])
+            self.reach_cmd = self.reach_filter(np.array(msg.reach, float), dt)
+        self.reach_active = bool(msg.reach_valid)
         grip = None
         if self.assist and not self.scripted:
             closing = msg.gesture in CLOSING_GESTURES
@@ -198,6 +215,12 @@ class ControllerNode(Node):
         s = self.shaper.step(target, self.dt)
         w = self.wrist_shaper.step(np.zeros(2) if self.scripted else self.wrist_target, self.dt)
         self.servo_pub.publish(Float32MultiArray(data=[float(a) for a in servo_angles(s)]))
+        if self.reach_active and self.reach_cmd is not None:
+            x, y, c = self.reach_cmd
+            goal = REACH_HOME + REACH_HALF * np.array([x, -y, -c])      # image up -> further over the table, closer -> lower
+            x, y, lift = self.reach_shaper.step(goal, self.dt)
+            self.reach_pub.publish(Float64MultiArray(data=[float(x), float(y)]))
+            self.lift_pub.publish(Float64MultiArray(data=[float(lift)]))
         self.last_cmd = joint_targets(s, w)
         self.joint_pub.publish(Float64MultiArray(data=[float(q) for q in self.last_cmd]))
         self.contact_pub.publish(Float32MultiArray(data=[float(x) for x in (self.planner.in_contact if self.planner.grip else self.blocked | (forces >= self.f_hold))]))

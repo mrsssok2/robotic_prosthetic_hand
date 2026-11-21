@@ -167,9 +167,27 @@
   <xacro:if value="${'$(arg lift)' == 'true'}">
     <!-- grasp world: the hand reaches over a table, palm DOWN, fingers pointing -Y (palm frame rotated +90 deg about X),
          so closing curls the fingers down around an object under the palm. base_z = palm height at lift = 0. -->
+    <!-- reach: a planar x/y prismatic chain over the table (reach_x, reach_y), then the vertical lift. Joint ranges are the
+         mechanical ones; hand_controller limits the commands to the workspace (lift >= -0.03 keeps the palm above the table). -->
+    <xacro:empty_link name="reach_x_link"/>
+    <xacro:empty_link name="reach_y_link"/>
     <xacro:empty_link name="lift_carriage"/>
+    <joint name="reach_x" type="prismatic">
+      <parent link="world"/><child link="reach_x_link"/>
+      <origin xyz="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-0.4" upper="0.4" effort="200" velocity="0.5"/>
+      <dynamics damping="1.0"/>
+    </joint>
+    <joint name="reach_y" type="prismatic">
+      <parent link="reach_x_link"/><child link="reach_y_link"/>
+      <origin xyz="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-0.3" upper="0.1" effort="200" velocity="0.5"/>
+      <dynamics damping="1.0"/>
+    </joint>
     <joint name="lift" type="prismatic">
-      <parent link="world"/><child link="lift_carriage"/>
+      <parent link="reach_y_link"/><child link="lift_carriage"/>
       <origin xyz="0 0 $(arg base_z)"/>
       <axis xyz="0 0 1"/>
       <limit lower="-0.06" upper="0.2" effort="200" velocity="0.5"/>
@@ -262,7 +280,7 @@
         </joint>
       </xacro:macro>
       <xacro:macro name="act_finger" params="f"><xacro:act name="${f}_mcp"/><xacro:act name="${f}_pip"/><xacro:act name="${f}_dip"/></xacro:macro>
-      <xacro:if value="${'$(arg lift)' == 'true'}"><xacro:act name="lift"/></xacro:if>
+      <xacro:if value="${'$(arg lift)' == 'true'}"><xacro:act name="lift"/><xacro:act name="reach_x"/><xacro:act name="reach_y"/></xacro:if>
       <xacro:act_finger f="little"/><xacro:act_finger f="ring"/><xacro:act_finger f="middle"/><xacro:act_finger f="index"/>
       <xacro:act name="thumb_swing"/><xacro:act name="thumb_opp"/><xacro:act name="thumb_mcp"/><xacro:act name="thumb_ip"/>
       <xacro:act name="wrist_pronation"/><xacro:act name="wrist_flexion"/>

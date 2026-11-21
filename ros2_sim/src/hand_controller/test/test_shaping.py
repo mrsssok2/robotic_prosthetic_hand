@@ -111,3 +111,12 @@ def test_one_euro_with_the_rate_limiter_stays_within_limits():
 def test_shaper_per_element_limits():
     s = Shaper(2, alpha=1.0, max_rate=1e9, lo=[-1.0, 0.0], hi=[1.0, 2.0])
     np.testing.assert_allclose(s.step([-5.0, 5.0], 0.02), [-1.0, 2.0])
+
+
+def test_reach_workspace_keeps_the_palm_above_the_table():
+    from hand_controller.shaping import REACH_HALF, REACH_HOME
+    lo, hi = REACH_HOME - REACH_HALF, REACH_HOME + REACH_HALF
+    palm_z = 0.36 + lo[2]                      # lowest palm origin (grasp world: base 0.36, table top 0.29)
+    assert palm_z - 0.0425 * 0 - 0.0155 >= 0.29 + 0.02          # palm underside >= 2 cm over the table top
+    assert lo[0] >= -0.4 and hi[0] <= 0.4 and lo[1] >= -0.3 and hi[1] <= 0.1   # inside the mechanical joint limits
+    assert lo[2] >= -0.06 and hi[2] <= 0.2

@@ -44,6 +44,13 @@ Every finger is then rescaled so *your* open hand reads 0 and *your* fist reads 
 position. It is saved to `calibration.json` next to `hand_cam.py` and loaded next time (`--calibration FILE`, `--no-calibration`);
 **`r`** clears it. If the hand moves during the capture, or a finger barely changes between the two poses, the preview says so.
 
+## Reach (grasp world)
+
+`./run.sh grasp:=true auto_grip:=true` in WSL, then in the preview press **`m`**: your hand's position in the image moves the
+simulated hand over the table (left/right, up = further, closer to the camera = lower). **`c`** re-centres (do it with the hand
+where it is comfortable), `m` again turns it off. `python hand_cam.py --reach` starts with it on. Then move over the cup, lower the
+hand and make a fist; open the hand to release.
+
 ## Wrist
 
 With the default MediaPipe tracker the hand's **pronation/supination** and **flexion/extension** are measured from the world

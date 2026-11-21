@@ -15,6 +15,10 @@ Keys in the preview window:
                                                                  fingers up, forearm vertical)
     f  calibrate FIST: make a tight fist for ~1 s
     r  clear the calibration          q  quit
+    m  reach on/off (grasp world): your hand's position in the image moves the simulated hand over the table:
+       left/right = x, up/down = forward/back, closer to the camera (bigger hand) = lower. Dead zone, workspace limits
+       and smoothing are applied; with reach off the base stays where it is.
+    c  re-centre: the current hand position becomes the middle of the workspace (do this with the hand where it is comfortable)
 The calibration is saved to calibration.json next to this script (--calibration PATH) and loaded the next time.
 
 Wrist (--tracker mediapipe only): pronation/supination and flexion/extension of the hand are derived from the world landmarks
@@ -42,6 +46,7 @@ for candidate in (_here.parent / "src" / "hand_tracker", _here / "src" / "hand_t
         sys.path.insert(0, str(candidate))
         break
 from hand_tracker.core import FINGER_ORDER, Calibration, CaptureSession, classify_gesture, is_pinch  # noqa: E402
+from hand_tracker.core.reach import ReachMapper  # noqa: E402
 from hand_tracker.trackers import make_tracker  # noqa: E402
 
 NAMES = [n.capitalize() for n in FINGER_ORDER]  # Little, Index, Middle, Ring, Thumb
@@ -66,6 +71,7 @@ def parse_args():
     ap.add_argument("--no-calibration", action="store_true", help="ignore and do not load a saved calibration")
     ap.add_argument("--mirror-source", action="store_true",
                     help="--source is a selfie-mirrored recording (tracking/record_clip.py makes those); webcams are always mirrored here")
+    ap.add_argument("--reach", action="store_true", help="start with reach control on (toggle with m)")
     ap.add_argument("--no-window", action="store_true", help="no preview (headless tests)")
     ap.add_argument("--max-frames", type=int, default=0, help="stop after N frames (tests)")
     return ap.parse_args()
@@ -117,6 +123,7 @@ def main():
     session = CaptureSession(None if args.no_calibration else Calibration.load(args.calibration))
     if session.calibration.has_open or session.calibration.has_fist:
         print(f"calibration loaded from {args.calibration}")
+    reach_on, reach = args.reach, None
     fps, last, frames = 0.0, time.time(), 0
     if args.tracker == "yolo":
         print(f"yolo runs on: {tracker.active_provider}")
@@ -146,6 +153,10 @@ def main():
                 gesture = "Pinch"
             packet = {"t": time.time(), "hand": "Right", "gesture": gesture, "tracker": args.tracker,
                       "track_ms": round(track_ms, 2), "curl": [round(float(c), 4) for c in curl]}
+            if reach_on and result.keypoints is not None:
+                if reach is None:
+                    reach = ReachMapper(frame.shape[1], frame.shape[0])
+                packet["reach"] = [round(float(v), 4) for v in reach.map(result.keypoints)]
             if wrist is not None:
                 packet["wrist"] = [round(float(a), 4) for a in wrist]
             if result.keypoints is not None:
@@ -164,6 +175,9 @@ def main():
             draw_overlay(frame, fps, gesture, curl, wrist,
                          f"{session.message} {100 * session.progress:.0f}%" if session.active else session.message,
                          cal.has_open or cal.has_fist)
+            if reach_on:
+                cv2.putText(frame, "REACH on" + (f"  x {packet['reach'][0]:+.2f} y {packet['reach'][1]:+.2f} close {packet['reach'][2]:+.2f}" if "reach" in packet else ""),
+                            (10, 262), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
             cv2.putText(frame, f"{args.tracker} {track_ms:4.1f} ms", (10, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
             cv2.imshow("Hand tracker (q to quit)", frame)
             key = cv2.waitKey(1) & 0xFF
@@ -173,6 +187,15 @@ def main():
                 session.start("open", time.time())
             elif key == ord("f"):
                 session.start("fist", time.time())
+            elif key == ord("m"):
+                reach_on = not reach_on
+                reach = None                      # the pose at switch-on is the centre
+                session.message = f"reach {'ON: move your hand to move the sim hand (c = re-centre)' if reach_on else 'OFF'}"
+            elif key == ord("c") and result is not None and result.keypoints is not None:
+                if reach is None:
+                    reach = ReachMapper(frame.shape[1], frame.shape[0])
+                reach.recentre(result.keypoints)
+                session.message = "re-centred"
             elif key == ord("r"):
                 session.reset()
                 pathlib.Path(args.calibration).unlink(missing_ok=True)

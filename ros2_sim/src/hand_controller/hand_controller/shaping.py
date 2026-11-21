@@ -102,3 +102,10 @@ def joint_targets(curl, wrist=(0.0, 0.0)):
     unit = np.clip(np.asarray(curl, float), 0.0, 1.0)
     fingers = np.clip(unit[_PER_CURL] * _SCALE, 0.0, JOINT_LIMITS)
     return np.concatenate([fingers, np.clip(np.asarray(wrist, float), WRIST_LIMITS[:, 0], WRIST_LIMITS[:, 1])])
+
+
+# Reach workspace in joint coordinates (m) of the grasp world: reach_x, reach_y, lift = HOME +- HALF.
+# Lift >= -0.03 keeps the palm underside 2+ cm above the table top; x covers the table objects; y keeps the forearm
+# (hanging behind the palm) clear of the base. Must stay inside the joint limits of the URDF (test_shaping checks).
+REACH_HOME = np.array([0.0, -0.10, 0.06])
+REACH_HALF = np.array([0.35, 0.15, 0.09])

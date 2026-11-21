@@ -1,7 +1,8 @@
 """UDP bridge: receives finger values from the Windows script (windows/hand_cam.py) -> /hand/state.
 
 Packet (JSON): {"t": epoch_s, "hand": "Right", "gesture": "Fist", "curl": [little, index, middle, ring, thumb],
-                "wrist": [pronation, flexion]}      (wrist: radians, optional; missing = neutral)
+                "wrist": [pronation, flexion], "reach": [x, y, closeness]}
+               (wrist: radians, optional; missing = neutral. reach: -1..1, optional, only used in the grasp world)
                {"t": epoch_s, "hand": null}  (no hand)
 If nothing valid arrives for `timeout` seconds, a valid=false state is published once.
 """
@@ -17,7 +18,8 @@ from hand_interfaces.msg import HandState
 
 
 def parse_packet(raw):
-    """Return (handedness, gesture, [5 curls], [pronation, flexion]) or None for 'no hand' / malformed packets."""
+    """Return (handedness, gesture, [5 curls], [pronation, flexion], reach or None) or None for 'no hand' / malformed packets.
+    reach = [x, y, closeness] in -1..1 (grasp-world reach control), None when the packet has none."""
     try:
         data = json.loads(raw)
         if not data.get("hand"):
@@ -28,7 +30,12 @@ def parse_packet(raw):
         wrist = [float(w) for w in data.get("wrist", (0.0, 0.0))]
         if len(wrist) != 2 or not all(map(math.isfinite, wrist)):
             wrist = [0.0, 0.0]
-        return str(data["hand"]), str(data.get("gesture", "None")), curl, wrist
+        reach = data.get("reach")
+        if reach is not None:
+            reach = [max(-1.0, min(1.0, float(r))) for r in reach]
+            if len(reach) != 3 or not all(map(math.isfinite, reach)):
+                reach = None
+        return str(data["hand"]), str(data.get("gesture", "None")), curl, wrist, reach
     except (ValueError, TypeError, KeyError, AttributeError):
         return None
 
@@ -57,7 +64,9 @@ class UdpBridge(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.header.frame_id = "camera"
             msg.valid = True
-            msg.handedness, msg.gesture, msg.curl, msg.wrist = parsed
+            msg.handedness, msg.gesture, msg.curl, msg.wrist, reach = parsed
+            msg.reach_valid = reach is not None
+            msg.reach = reach or [0.0, 0.0, 0.0]
             self.last, self.last_rx = msg, self.get_clock().now()
             self.pub.publish(msg)
 

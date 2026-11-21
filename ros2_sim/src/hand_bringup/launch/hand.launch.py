@@ -6,7 +6,7 @@
     ros2 launch hand_bringup hand.launch.py input:=none        # only the sim + controller (feed /hand/state yourself)
     ros2 launch hand_bringup hand.launch.py gui:=false         # headless Gazebo
     ros2 launch hand_bringup hand.launch.py rviz:=true
-    ros2 launch hand_bringup hand.launch.py grasp:=true        # table with ball / cup / pen, lift joint, contact sensors
+    ros2 launch hand_bringup hand.launch.py grasp:=true        # table with ball / cup / pen, reach (x, y, lift) joints, contact sensors
     ros2 launch hand_bringup hand.launch.py grasp:=true auto_grip:=true   # + a fist/pinch near an object picks power/pinch grip
     ros2 launch hand_bringup hand.launch.py smoothing:=ema     # the original EMA 0.3 smoothing instead of the One Euro filter
 """
@@ -50,6 +50,8 @@ def _setup(context):
                arguments=["finger_position_controller", "--controller-manager-timeout", "60", "--switch-timeout", "30"])
     lift = Node(package="controller_manager", executable="spawner",
                 arguments=["lift_controller", "--controller-manager-timeout", "60", "--switch-timeout", "30"])
+    reach = Node(package="controller_manager", executable="spawner",
+                 arguments=["reach_controller", "--controller-manager-timeout", "60", "--switch-timeout", "30"])
     extra = []
     if lc["camera"] == "true":  # screenshot world: bridge the fixed camera to /camera/image
         extra.append(Node(package="ros_gz_bridge", executable="parameter_bridge", output="screen",
@@ -57,7 +59,8 @@ def _setup(context):
     return extra + [gz, rsp, clock, spawn,
             RegisterEventHandler(OnProcessExit(target_action=spawn, on_exit=[jsb])),
             RegisterEventHandler(OnProcessExit(target_action=jsb, on_exit=[fpc]))] + (
-            [RegisterEventHandler(OnProcessExit(target_action=fpc, on_exit=[lift]))] if grasp else [])
+            [RegisterEventHandler(OnProcessExit(target_action=fpc, on_exit=[lift])),
+             RegisterEventHandler(OnProcessExit(target_action=lift, on_exit=[reach]))] if grasp else [])
 
 
 def generate_launch_description():

@@ -15,7 +15,7 @@ from hand_tracker.udp_bridge import parse_packet  # noqa: E402
 
 def test_valid_packet():
     raw = json.dumps({"hand": "Right", "gesture": "Fist", "curl": [1, 0.5, 0, 0, 1]})
-    assert parse_packet(raw) == ("Right", "Fist", [1.0, 0.5, 0.0, 0.0, 1.0], [0.0, 0.0])
+    assert parse_packet(raw) == ("Right", "Fist", [1.0, 0.5, 0.0, 0.0, 1.0], [0.0, 0.0], None)
 
 
 def test_wrist_is_optional_and_validated():
@@ -34,3 +34,10 @@ def test_values_are_clamped():
                                  json.dumps({"hand": "Right", "curl": ["a"] * 5})])
 def test_bad_packets_are_ignored(raw):
     assert parse_packet(raw) is None
+
+
+def test_reach_is_optional_clamped_and_validated():
+    base = {"hand": "Right", "curl": [0, 0, 0, 0, 0]}
+    assert parse_packet(json.dumps(base))[4] is None
+    assert parse_packet(json.dumps({**base, "reach": [0.2, -0.5, 3]}))[4] == pytest.approx([0.2, -0.5, 1.0])
+    assert parse_packet(json.dumps({**base, "reach": [0.2]}))[4] is None

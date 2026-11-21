@@ -5,6 +5,8 @@ controller_manager:
       type: joint_state_broadcaster/JointStateBroadcaster
     finger_position_controller:
       type: position_controllers/JointGroupPositionController
+    reach_controller:           # grasp world only: planar x/y of the hand base
+      type: position_controllers/JointGroupPositionController
     lift_controller:            # only spawned in the grasp world (lift:=true)
       type: position_controllers/JointGroupPositionController
 
@@ -19,3 +21,7 @@ finger_position_controller:
 lift_controller:
   ros__parameters:
     joints: [lift]
+
+reach_controller:
+  ros__parameters:
+    joints: [reach_x, reach_y]

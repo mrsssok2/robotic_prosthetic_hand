@@ -71,6 +71,7 @@ Simulation-only ROS 2 (Jazzy) rebuild of the robotic prosthetic hand
   object -> pinch, wide -> power). Closing stops per finger on fingertip force >= 2 N **or when the finger is blocked** (its
   joint lags the command: contact anywhere on the finger, which the tip sensor misses); the end of an object grasp is verified
   (enough fingers touching, else re-open and retry, up to 3 attempts, then `failed`). (An optional `regrip`, off by default, makes a finger that lost its support close on again.) Object poses come from the simulator (stand-in for object perception).
+- **Reach (grasp world)**: `core/reach.py` maps the palm centre and apparent hand size (wrist -> middle MCP, a depth cue) to three numbers in -1..1 relative to a re-centred pose, with a dead zone; the controller smooths them (One Euro), scales to the workspace (`REACH_HOME +- REACH_HALF`, lift >= -0.03 so the palm stays above the table), rate-limits and drives a position controller on `reach_x`/`reach_y` plus the lift controller. Size is a rough depth cue (it also changes if the hand rotates or fingers extend).
 - **Resources:** 8 GB WSL RAM / 6 GB GPU -> MediaPipe on CPU, Gazebo headless-capable, small hand mesh.
 
 ## Metrics
