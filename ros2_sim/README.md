@@ -29,7 +29,9 @@ Status: steps 1-6 of 8 (see [docs/design.md](docs/design.md)); metrics, video-fi
 | classic (CPU) | 100% | n/a | 0.437 | 61.8% (majority guess: 75.9%) | 93 | 10 ms |
 
 UDP packet to the Gazebo hand reaching 50% closure: 226 ms median (mostly the controller's smoothing); add the tracker latency for end to end (about 240-255 ms, no camera).
-Not done: evaluation on real webcam clips (no camera in WSL; `tracking/record_clip.py` + `evaluate.py --clips` are ready), and YOLO was stopped at 23/60 epochs.
+**Real webcam clip (own 45 s recording, held out) and self-collected distillation:** the dataset-trained model found the hand in 72% of frames (MediaPipe 93%), keypoint error 11.4%, curl MAE 0.274, open/closed agreement 68.1%. Fine-tuned on 271 frames auto-labelled by MediaPipe from two other clips of the same setup (mixed with the original data, `tracking/make_selfcollected_dataset.py`), `models/hand_pose_n640_self.onnx` gets found 100%, keypoint error 5.6%, curl MAE 0.185, open/closed 77.5%, with no regression on the 3000 dataset test images (NME 6.18%, open/closed 95.2%). Caveats: same person, room and camera as the training clips, teacher is MediaPipe, one run; details in [docs/results/self_distill.md](docs/results/self_distill.md). Use it with `--model models/hand_pose_n640_self.onnx` (the default model is unchanged).
+Windows GPU: `--device auto|cuda|dml|cpu` (DirectML via `onnxruntime-directml`, CPU fallback); implemented and unit-tested with a fake onnxruntime, not yet run on a Windows GPU.
+Not done: evaluation in other rooms / with other people (and the base YOLO was stopped at 23/60 epochs)
 Full tables, per-finger numbers and caveats: [docs/results/README.md](docs/results/README.md).
 
 **Grips** (`hand_controller/grips.py`): open, point, pinch, power as coordinated preshape -> close poses; `/hand/grip` topic or `grip_assist:=true` (gestures Open Hand / Pointing / Pinch / Fist). Closing is **force-limited**: each finger stops when its fingertip contact sensor reads >= 2 N and the joint effort limit caps the squeeze.

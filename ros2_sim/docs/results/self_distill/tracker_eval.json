@@ -1,0 +1,104 @@
+{
+ "accuracy": {
+  "yolo": {
+   "images": 3000,
+   "detection_rate": 0.9966666666666667,
+   "nme_pct": 6.179142677958593,
+   "pck05": 0.7767638158942507,
+   "curl_mae": 0.0810761419569302,
+   "curl_mae_per_finger": {
+    "little": 0.10204750204904248,
+    "index": 0.08091504528635454,
+    "middle": 0.06753150341236651,
+    "ring": 0.08141288314290784,
+    "thumb": 0.07347377589397966
+   },
+   "openclosed_acc": 0.9524666666666667,
+   "openclosed_acc_per_finger": {
+    "little": 0.9353333333333333,
+    "index": 0.964,
+    "middle": 0.9733333333333334,
+    "ring": 0.9613333333333334,
+    "thumb": 0.9283333333333333
+   }
+  },
+  "mediapipe": {
+   "images": 3000,
+   "detection_rate": 1.0,
+   "nme_pct": 0.6623370407218194,
+   "pck05": 0.9871904761904762,
+   "curl_mae": 0.029800883232956023,
+   "curl_mae_per_finger": {
+    "little": 0.043277638894411455,
+    "index": 0.03289358809240608,
+    "middle": 0.03255631408214156,
+    "ring": 0.035217093158034396,
+    "thumb": 0.005059781937786654
+   },
+   "openclosed_acc": 0.9947333333333334,
+   "openclosed_acc_per_finger": {
+    "little": 0.9813333333333333,
+    "index": 0.999,
+    "middle": 0.9986666666666667,
+    "ring": 0.9963333333333333,
+    "thumb": 0.9983333333333333
+   }
+  },
+  "classic": {
+   "images": 3000,
+   "detection_rate": 1.0,
+   "nme_pct": null,
+   "pck05": null,
+   "curl_mae": 0.4369447183449515,
+   "curl_mae_per_finger": {
+    "little": 0.46814638287235477,
+    "index": 0.41689669190048484,
+    "middle": 0.42838814856693685,
+    "ring": 0.4466119296448734,
+    "thumb": 0.4246804387401075
+   },
+   "openclosed_acc": 0.6176,
+   "openclosed_acc_per_finger": {
+    "little": 0.5543333333333333,
+    "index": 0.6193333333333333,
+    "middle": 0.6036666666666667,
+    "ring": 0.5913333333333334,
+    "thumb": 0.7193333333333334
+   }
+  }
+ },
+ "majority_baseline": 0.7599333333333333,
+ "speed": {
+  "yolo (onnx cpu)": {
+   "frames": 300,
+   "fps": 15.86168362745995,
+   "lat_mean_ms": 63.045009816535945,
+   "lat_p50_ms": 62.64037549954082,
+   "lat_p95_ms": 70.89973490019474
+  },
+  "mediapipe (cpu)": {
+   "frames": 300,
+   "fps": 61.13390429661682,
+   "lat_mean_ms": 16.35753533993314,
+   "lat_p50_ms": 13.903580502301338,
+   "lat_p95_ms": 28.798563700911473
+  },
+  "classic (cpu)": {
+   "frames": 300,
+   "fps": 89.25886556366562,
+   "lat_mean_ms": 11.203368916746209,
+   "lat_p50_ms": 10.98537550024048,
+   "lat_p95_ms": 22.67810955090681
+  },
+  "yolo (onnx cuda)": {
+   "frames": 300,
+   "fps": 110.9879108723069,
+   "lat_mean_ms": 9.009990296605489,
+   "lat_p50_ms": 8.36289949984348,
+   "lat_p95_ms": 11.228299749382131
+  }
+ },
+ "test_images": 3000,
+ "onnx": "hand_pose_n640_self.onnx",
+ "note": "labels are MediaPipe-generated (Ultralytics hand-keypoints); see docs/results/README.md"
+}

@@ -45,6 +45,8 @@ def parse_args():
     ap.add_argument("--tracker", choices=("yolo", "mediapipe", "classic"), default="mediapipe",
                     help="yolo = own YOLO11 pose model (ONNX), mediapipe = baseline, classic = skin + contour, no learning")
     ap.add_argument("--model", help="ONNX file for --tracker yolo (default: models/hand_pose_n640.onnx)")
+    ap.add_argument("--device", choices=("auto", "cuda", "dml", "cpu"), default="auto",
+                    help="--tracker yolo: auto = CUDA > DirectML (Windows GPU) > CPU; falls back to CPU if the GPU path fails")
     ap.add_argument("--yolo-conf", type=float, default=0.25, help="detection confidence for --tracker yolo")
     ap.add_argument("--camera", type=int, default=0, help="webcam index")
     ap.add_argument("--source", help="video file or image instead of the webcam")
@@ -87,8 +89,10 @@ def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dest = (args.host, args.port)
     cap, still = open_source(args)
-    tracker = make_tracker(args.tracker, **({"model": args.model, "conf": args.yolo_conf} if args.tracker == "yolo" else {}))
+    tracker = make_tracker(args.tracker, **({"model": args.model, "conf": args.yolo_conf, "device": args.device} if args.tracker == "yolo" else {}))
     fps, last, frames = 0.0, time.time(), 0
+    if args.tracker == "yolo":
+        print(f"yolo runs on: {tracker.active_provider}")
     print(f"tracker: {args.tracker} - sending to udp://{args.host}:{args.port} - press q in the preview to quit")
     while True:
         if cap is None:

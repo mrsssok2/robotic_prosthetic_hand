@@ -3,4 +3,5 @@
 mediapipe==0.10.14
 opencv-python==4.10.0.84
 numpy==1.26.4
-onnxruntime==1.20.1          # only for --tracker yolo
+onnxruntime-directml==1.20.1 # only for --tracker yolo; GPU via DirectML (any DX12 GPU), CPU fallback built in.
+                             # Do not install plain `onnxruntime` next to it (same module name); CPU-only machines can swap it in.
